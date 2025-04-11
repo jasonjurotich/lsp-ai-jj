@@ -212,3 +212,24 @@ impl ChatHistoryStore {
 //         self.delete_history(session_id).await
 //     }
 // }
+
+
+
+
+How to Use:
+
+Initialization: Somewhere in your main server setup (e.g., where you initialize SurrealMemory), create the ChatHistoryStore:
+Rust
+
+// Assuming `db: Arc<Surreal<Ws>>` is your connected SurrealDB client
+let chat_history_store = Arc::new(ChatHistoryStore::new(db.clone()).await?);
+In LSP Chat Handler:
+Get the URI of the .md file (session_id).
+Call chat_history_store.get_history(&session_id, Some(20)).await to get previous messages.
+After getting the user prompt and the model response:
+chat_history_store.save_message(&session_id, "user", &user_prompt).await?
+chat_history_store.save_message(&session_id, "model", &gemini_response).await?
+In LSP Delete Command Handler:
+Get the URI of the .md file (session_id).
+Call chat_history_store.delete_history(&session_id).await?.
+This module provides the necessary database interactions for managing persistent chat history within your specified .md file workflow. Remember to integrate the calls to these methods into your LSP action and command handlers.
