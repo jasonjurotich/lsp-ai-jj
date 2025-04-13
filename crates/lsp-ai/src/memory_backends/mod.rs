@@ -6,6 +6,11 @@ use serde_json::Value;
 
 use crate::config::{Config, ValidMemoryBackend};
 
+#[cfg(feature = "surreal")]
+mod surreal_store;
+#[cfg(feature = "surreal")]
+pub use surreal_store::SurrealStore;
+
 pub(crate) mod file_store;
 mod postgresml;
 mod vector_store;
