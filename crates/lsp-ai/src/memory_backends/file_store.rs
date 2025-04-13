@@ -286,7 +286,10 @@ impl FileStore {
         self.file_map.read().contains_key(uri)
     }
 
-    pub(crate) fn position_to_byte(&self, position: &TextDocumentPositionParams) -> anyhow::Result<usize> {
+    pub(crate) fn position_to_byte(
+        &self,
+        position: &TextDocumentPositionParams,
+    ) -> anyhow::Result<usize> {
         let file_map = self.file_map.read();
         let uri = position.text_document.uri.to_string();
         let file = file_map
