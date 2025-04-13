@@ -122,12 +122,6 @@ pub(crate) struct VectorStore {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub(crate) struct SurrealStore {
-    pub(crate) connection_string: String,
-    // any other config needed
-}
-
-#[derive(Debug, Clone, Deserialize)]
 pub(crate) enum ValidMemoryBackend {
     #[serde(rename = "file_store")]
     FileStore(FileStore),
@@ -135,8 +129,6 @@ pub(crate) enum ValidMemoryBackend {
     VectorStore(VectorStore),
     #[serde(rename = "postgresml")]
     PostgresML(PostgresML),
-    #[serde(rename = "surreal")]
-    SurrealStore(SurrealStore),
 }
 
 #[derive(Debug, Clone, Deserialize)]
