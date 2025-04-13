@@ -139,8 +139,8 @@ impl TryFrom<Config> for Box<dyn MemoryBackend + Send + Sync> {
                 vector_store::VectorStore::new(vector_store_config, configuration)?,
             )),
             #[cfg(feature = "surreal")]
-            ValidMemoryBackend::SurrealStore(surreal_store_config) => Ok(Box::new(
-                surreal_store::SurrealStore::new(surreal_store_config, configuration)?,
+            ValidMemoryBackend::SurrealDB(surrealdb_config) => Ok(Box::new(
+                surreal_store::Surreal::new(surrealdb_config, configuration)?,
             )),
         }
     }
