@@ -211,6 +211,17 @@ pub(crate) struct PostgresML {
     pub(crate) embedding_model: Option<PostgresMLEmbeddingModel>,
 }
 
+pub struct SurrealStore {
+    pub engine: String,       // Example: "mem" or "file"
+    pub path: Option<String>, // Optional path for file-backed store
+}
+
+impl SurrealStore {
+    pub fn new(config: SurrealStore) -> Self {
+        SurrealStore { config }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct FileStore {
