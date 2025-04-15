@@ -169,6 +169,120 @@ struct ChunkRecord {
 }
 
 
+async fn apply_db_operations(&self, operations: Vec<ChunkDbOperation>) -> anyhow::Result<()> {
+    // 'self' here refers to an instance of your main VectorStore struct,
+    // which holds self.surreal_client and self.surreal_table_name
+
+    // Loop through each operation determined by the file comparison logic
+    for op in operations {
+        match op {
+            // --- Handle CREATE operations ---
+            ChunkDbOperation::Create { uri, text, range, embedding } => {
+                // Build the record object from the operation data
+                let record = ChunkRecord {
+                    uri, // Already owned String
+                    text, // Already owned String
+                    start_byte: range.start_byte,
+                    end_byte: range.end_byte,
+                    embedding, // Already owned Vec<f32>
+                };
+
+                // Execute the CREATE query using the SurrealDB client
+                let created: Option<ChunkRecord> = self.surreal_client
+                    .create(&self.surreal_table_name) // self.surreal_table_name holds "chunks" etc.
+                    .content(record)
+                    .await
+                    .with_context(|| format!("Failed to create chunk record for URI: {}", record.uri))?; // Add error context
+
+                 // Optional: log success or check 'created' content
+                 if created.is_none() {
+                     // This might indicate an issue depending on SurrealDB version/config
+                     eprintln!("Warning: Create operation didn't return the created record for URI: {}", record.uri);
+                 }
+            }
+
+            // --- Handle UPDATE operations ---
+            ChunkDbOperation::Update { identifier, updates } => {
+                // Use the identifier provided in the operation
+                if let RecordIdentifier::UriAndStartByte(uri, start_byte) = &identifier {
+                    // Build the update query dynamically based on what fields are present in 'updates'
+                    // (Using the complex query building logic you provided)
+                    // Note: Consider if SurrealDB Rust SDK offers a cleaner builder for MERGE operations.
+
+                    let mut update_query = format!("UPDATE type::table($table) WHERE uri = $uri AND start_byte = $start_byte MERGE {{");
+                    let mut bindings = surrealdb::sql::Vars::new();
+                    bindings.insert("table".into(), self.surreal_table_name.clone().into());
+                    bindings.insert("uri".into(), uri.clone().into());
+                    bindings.insert("start_byte".into(), (*start_byte as i64).into()); // Use i64 for DB int
+
+                    let mut updates_added = false; // Track if any updates were actually added
+
+                    if let Some(text) = &updates.text {
+                        update_query.push_str(" text: $text,");
+                        bindings.insert("text".into(), text.clone().into());
+                        updates_added = true;
+                    }
+                    if let Some(embedding) = &updates.embedding {
+                        update_query.push_str(" embedding: $embedding,");
+                        // Ensure embedding is compatible type for binding (Vec<f32> should work)
+                        bindings.insert("embedding".into(), embedding.clone().into());
+                        updates_added = true;
+                    }
+                    if let Some(range) = &updates.range {
+                        update_query.push_str(" start_byte: $new_start, end_byte: $new_end,");
+                        bindings.insert("new_start".into(), (range.start_byte as i64).into());
+                        bindings.insert("new_end".into(), (range.end_byte as i64).into());
+                        updates_added = true;
+                    }
+
+                    // Only execute if there were actual fields to update
+                    if updates_added {
+                        update_query.pop(); // Remove trailing comma
+                        update_query.push_str(" };"); // Close MERGE object and query
+
+                        let mut response = self.surreal_client
+                            .query(&update_query) // Pass constructed query
+                            .bind(bindings)       // Pass constructed bindings
+                            .await
+                            .with_context(|| format!("Failed to update chunk record for URI: {} StartByte: {}", uri, start_byte))?;
+
+                        // Process response if needed, e.g., deserialize updated records or check status
+                        let _updated: Vec<ChunkRecord> = response.take(0)
+                           .with_context(|| format!("Failed to parse update response for URI: {} StartByte: {}", uri, start_byte))?;
+                    } else {
+                         // Optional: Log or handle cases where an Update operation had no actual data to update
+                         eprintln!("Skipping update for URI: {} StartByte: {} as no update data was provided.", uri, start_byte);
+                    }
+                }
+                 // Handle other RecordIdentifier types if you add them
+            }
+
+            // --- Handle DELETE operations ---
+            ChunkDbOperation::Delete { identifier } => {
+                // Use the identifier provided in the operation
+                if let RecordIdentifier::UriAndStartByte(uri, start_byte) = &identifier {
+                    let sql = "DELETE type::table($table) WHERE uri = $uri AND start_byte = $start_byte;";
+
+                    let mut response = self.surreal_client
+                        .query(sql)
+                        .bind(("table", &self.surreal_table_name))
+                        .bind(("uri", uri))
+                        .bind(("start_byte", *start_byte as i64)) // Use i64 for DB int
+                        .await
+                        .with_context(|| format!("Failed to delete chunk record for URI: {} StartByte: {}", uri, start_byte))?;
+
+                    // Process response if needed, e.g., deserialize the deleted record or check status
+                    let _deleted: Vec<ChunkRecord> = response.take(0)
+                        .with_context(|| format!("Failed to parse delete response for URI: {} StartByte: {}", uri, start_byte))?;
+                }
+                 // Handle other RecordIdentifier types if you add them
+            }
+        }
+    }
+
+    Ok(()) // Indicate success if all operations completed without error
+}
+
 // Requires #[derive(Serialize, Deserialize)].
 // The vec: StoredChunkVec field is replaced by embedding: Vec<f32>.
 // The range: ByteRange is typically flattened into start_byte and end_byte fields for easier database handling.
