@@ -276,6 +276,7 @@ let record = ChunkRecord { // Build the record from op data
     end_byte: op.range.end_byte,
     embedding: op.embedding,
 };
+
 let created: Option<ChunkRecord> = self.surreal_client
     .create(&self.surreal_table_name) // self.surreal_table_name holds "chunks" etc.
     .content(record)
