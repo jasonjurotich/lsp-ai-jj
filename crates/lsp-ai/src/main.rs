@@ -7,6 +7,7 @@ use lsp_types::{
     CodeActionOptions, CompletionOptions, DidChangeTextDocumentParams, DidOpenTextDocumentParams,
     RenameFilesParams, ServerCapabilities, TextDocumentSyncKind,
 };
+use std::fs::File;
 use std::sync::Mutex;
 use std::{
     collections::HashMap,
@@ -17,7 +18,6 @@ use std::{
 };
 use tracing::{error, info};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
-
 mod config;
 mod crawl;
 mod custom_requests;
