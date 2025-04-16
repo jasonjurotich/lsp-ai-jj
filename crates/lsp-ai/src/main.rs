@@ -128,35 +128,35 @@ fn init_logger(_args: &Args) {
 
 // Builds a tracing subscriber from the `LSP_AI_LOG` environment variable
 // If the variables value is malformed or missing, sets the default log level to ERROR
-fn init_logger(args: &Args) {
-    let builder = FmtSubscriber::builder().with_env_filter(EnvFilter::from_env("LSP_AI_LOG"));
-    let base_dirs = BaseDirs::new();
+// fn init_logger(args: &Args) {
+//     let builder = FmtSubscriber::builder().with_env_filter(EnvFilter::from_env("LSP_AI_LOG"));
+//     let base_dirs = BaseDirs::new();
 
-    if args.use_seperate_log_file && base_dirs.is_some() {
-        let base_dirs = base_dirs.unwrap();
-        let cache_dir = base_dirs.cache_dir();
-        // Linux:   /home/alice/.cache
-        // Windows: C:\Users\Alice\AppData\Local
-        // macOS:   /Users/Alice/Library/Caches
-        match create_log_file(&cache_dir) {
-            Ok(log_file) => builder.with_writer(Mutex::new(log_file)).init(),
-            Err(e) => {
-                eprintln!("creating log file: {e:?} - falling back to stderr");
-                builder
-                    .with_writer(std::io::stderr)
-                    .without_time()
-                    .with_ansi(false)
-                    .init()
-            }
-        }
-    } else {
-        builder
-            .with_writer(std::io::stderr)
-            .without_time()
-            .with_ansi(false)
-            .init()
-    }
-}
+//     if args.use_seperate_log_file && base_dirs.is_some() {
+//         let base_dirs = base_dirs.unwrap();
+//         let cache_dir = base_dirs.cache_dir();
+//         // Linux:   /home/alice/.cache
+//         // Windows: C:\Users\Alice\AppData\Local
+//         // macOS:   /Users/Alice/Library/Caches
+//         match create_log_file(&cache_dir) {
+//             Ok(log_file) => builder.with_writer(Mutex::new(log_file)).init(),
+//             Err(e) => {
+//                 eprintln!("creating log file: {e:?} - falling back to stderr");
+//                 builder
+//                     .with_writer(std::io::stderr)
+//                     .without_time()
+//                     .with_ansi(false)
+//                     .init()
+//             }
+//         }
+//     } else {
+//         builder
+//             .with_writer(std::io::stderr)
+//             .without_time()
+//             .with_ansi(false)
+//             .init()
+//     }
+// }
 
 fn load_config(args: &Args, init_args: serde_json::Value) -> anyhow::Result<serde_json::Value> {
     if let Some(config_path) = &args.config {
