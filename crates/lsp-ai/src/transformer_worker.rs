@@ -15,9 +15,12 @@ use std::{
     time::{Duration, SystemTime},
 };
 use tokio::sync::oneshot;
-use tracing::{error, info, instrument};
+use tracing::{error, info, instrument, warn};
 
-use crate::config::{self, Config};
+use crate::transformer_backends::gemini::{GeminiContent, Part};
+use serde_json::map::Map;
+
+use crate::config::{self, ChatMessage, Config};
 use crate::custom_requests::generation::{GenerateResult, GenerationParams};
 use crate::custom_requests::generation_stream::GenerationStreamParams;
 use crate::memory_backends::Prompt;
@@ -845,8 +848,12 @@ async fn do_generate(
     transformer_backend: &Box<dyn TransformerBackend + Send + Sync>,
     memory_backend_tx: std::sync::mpsc::Sender<memory_worker::WorkerRequest>,
     request: &GenerationRequest,
+    // app_config: &Config,
 ) -> anyhow::Result<Response> {
-    let params = serde_json::to_value(request.params.parameters.clone()).unwrap();
+    // This line below (the let params) takes the parameters that were loaded from your TOML configuration (the [language-server.lsp-ai.config.chat.parameters] section) which are stored inside the incoming request object.
+    // It converts them into a serde_json::Value. At this point, params contains your correctly structured systemInstruction and generationConfig, but nothing else.
+
+    let mut params = serde_json::to_value(request.params.parameters.clone()).unwrap();
 
     let (tx, rx) = oneshot::channel();
     memory_backend_tx.send(memory_worker::WorkerRequest::Prompt(PromptRequest::new(
@@ -856,6 +863,118 @@ async fn do_generate(
         tx,
     )))?;
     let prompt = rx.await?;
+
+    // let model_name = &request.params.model; // Assuming path is correct
+    // let model_config_option = app_config
+    //     .config // Path within Config struct might differ
+    //     .models // Assuming this is the HashMap<String, ModelConfig>
+    //     .get(model_name);
+
+    // let is_gemini = matches!(model_config_option, Some(config::ValidModel::Gemini(_)));
+
+    // if is_gemini {
+    //     info!(
+    //         "Model '{}' is Gemini type. Preparing 'contents'.",
+    //         model_name
+    //     );
+
+    // --- !!! FIND & REPLACE THIS !!! ---
+    // This is the placeholder part. You MUST figure out how to get the
+    // actual Vec<ChatMessage> representing the current conversation history.
+    // Some possibilities (replace the line below with the correct one):
+    // let chat_history: &Vec<ChatMessage> = &request.chat_history; // If history is in the request object
+    // let chat_history: Vec<ChatMessage> = chat_manager.get_history(request.session_id); // If using a chat manager
+    // let chat_history: Vec<ChatMessage> = retrieve_history_somehow();
+
+    //     let chat_history: &Vec<ChatMessage> = &Vec::new(); // Using empty vec as placeholder ONLY
+    //     warn!("Using placeholder (empty) chat history for Gemini. NEEDS ACTUAL HISTORY SOURCE.");
+    //     // --- !!! END OF PLACEHOLDER !!! ---
+
+    //     if chat_history.is_empty() {
+    //         warn!(
+    //             "Chat history is empty. Gemini request might be incomplete or fail if first turn."
+    //         );
+    //     }
+
+    //     // --- Step 4a: Convert chat history to Gemini format ---
+    //     let gemini_contents: Vec<GeminiContent> = chat_history
+    //         .iter()
+    //         .map(|msg| {
+    //             // Basic conversion, assumes msg.role and msg.content exist and are Strings
+    //             GeminiContent::new(
+    //                 msg.role.clone(),
+    //                 vec![Part {
+    //                     text: msg.content.clone(),
+    //                 }],
+    //             )
+    //         })
+    //         .collect();
+    //     info!(
+    //         "Converted {} history messages to GeminiContent format.",
+    //         gemini_contents.len()
+    //     );
+
+    //     // --- Step 4b: Serialize the Gemini contents to a JSON Value ---
+    //     let contents_value = match serde_json::to_value(gemini_contents) {
+    //         Ok(val) => val,
+    //         Err(e) => {
+    //             error!(
+    //                 "Failed to serialize Vec<GeminiContent> to JSON Value: {}",
+    //                 e
+    //             );
+    //             // Return error as Gemini requires 'contents'
+    //             return Err(anyhow::anyhow!(
+    //                 "Failed to serialize Gemini contents: {}",
+    //                 e
+    //             ));
+    //         }
+    //     };
+
+    //     // --- Step 4c: Insert the 'contents' Value into the 'params' Value ---
+    //     // We need mutable access to the params Value, assuming it's a JSON object
+    //     if let Some(params_map) = params.as_object_mut() {
+    //         // Insert the "contents" key with the serialized history array
+    //         params_map.insert("contents".to_string(), contents_value);
+    //         info!("Successfully inserted 'contents' key into params JSON object.");
+    //     } else {
+    //         // This should not happen if params came from a valid TOML table, but handle it just in case.
+    //         error!("Cannot insert 'contents' because 'params' is not a JSON object.");
+    //         return Err(anyhow::anyhow!(
+    //             "Cannot add contents, params structure is not a JSON object"
+    //         ));
+    //     }
+    // } // End of `if is_gemini` block
+
+    // // --- Step 5: Call the backend's do_generate with the (potentially modified) params ---
+    //     info!("Calling backend.do_generate for model '{}'. Final params:\n{}",
+    //         model_name,
+    //         serde_json::to_string_pretty(&params).unwrap_or_else(|_| "Failed to log params".to_string())
+    //     );
+
+    //     let backend_response = transformer_backend.do_generate(&prompt, params).await // Pass the final params
+    //         .with_context(|| format!("Backend failed executing do_generate for model '{}'", model_name))?;
+    //     info!("Received response from backend.do_generate.");
+
+    //     // --- Step 6: Post-process the generated text ---
+    //     let processed_text = post_process_response(
+    //         backend_response.generated_text, // Assuming DoGenerationResponse has this field
+    //         &prompt,
+    //         &request.params.post_process, // Assuming request has post_process config
+    //     );
+    //     info!("Response post-processed.");
+
+    //     // --- Step 7: Format and return the final Response ---
+    //     let result = GenerateResult {
+    //         generated_text: processed_text,
+    //     };
+    //     let result_value = serde_json::to_value(result)
+    //         .context("Failed to serialize final GenerateResult")?;
+
+    //     Ok(Response {
+    //         id: request.id.clone(),
+    //         result: Some(result_value),
+    //         error: None,
+    //     })
 
     let mut response = transformer_backend.do_generate(&prompt, params).await?;
     response.generated_text = post_process_response(
@@ -1038,3 +1157,45 @@ mod tests {
         assert_eq!(new_response, "zz");
     }
 }
+
+/*
+
+// --- Helper function assumed to exist elsewhere ---
+fn post_process_response(text: String, _prompt: &Prompt, _post_process_config: &Option<Value>) -> String {
+    // Add any post-processing logic here (trimming, etc.)
+    text.trim().to_string()
+}
+
+// --- Helper struct assumed to exist elsewhere ---
+#[derive(Serialize)]
+struct GenerateResult {
+    generated_text: String,
+}
+
+// --- Structs assumed from context ---
+// Make sure these match the actual definitions in lsp-ai
+struct GenerationRequest {
+    id: RequestId,
+    params: GenerationParams, // Assuming GenerationParams holds the model name, parameters, position, etc.
+    chat_history: Vec<ChatMessage>, // <-- *** IF HISTORY IS PART OF REQUEST ***
+}
+
+struct GenerationParams {
+    model: String,
+    parameters: Value, // Parameters from TOML
+    text_document_position: TextDocumentPositionParams,
+    post_process: Option<Value>, // Assuming post-processing config exists
+    // other fields...
+}
+
+// Need to ensure ModelConfig has a method like get_type()
+struct ModelConfig {
+    // ... other fields
+    r#type: String, // The field storing "gemini", "anthropic" etc.
+}
+impl ModelConfig {
+    fn get_type(&self) -> &str {
+        &self.r#type
+    }
+}
+*/

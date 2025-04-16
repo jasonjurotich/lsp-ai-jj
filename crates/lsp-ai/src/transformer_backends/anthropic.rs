@@ -152,6 +152,7 @@ impl Anthropic {
 #[async_trait::async_trait]
 impl TransformerBackend for Anthropic {
     #[instrument(skip(self))]
+    // this calls the do_generate function in the transformer_worker.rs file
     async fn do_generate(
         &self,
         prompt: &Prompt,

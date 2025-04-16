@@ -11,7 +11,7 @@ use crate::{
 };
 
 mod anthropic;
-mod gemini;
+pub mod gemini;
 #[cfg(feature = "llama_cpp")]
 mod llama_cpp;
 mod mistral_fim;

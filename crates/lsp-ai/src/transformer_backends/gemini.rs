@@ -38,18 +38,18 @@ const fn max_tokens_default() -> usize {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-struct Part {
+pub struct Part {
     pub(crate) text: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-struct GeminiContent {
-    role: String,
-    parts: Vec<Part>,
+pub struct GeminiContent {
+    pub role: String,
+    pub parts: Vec<Part>,
 }
 
 impl GeminiContent {
-    fn new(role: String, parts: Vec<Part>) -> Self {
+    pub fn new(role: String, parts: Vec<Part>) -> Self {
         Self { role, parts }
     }
 }
