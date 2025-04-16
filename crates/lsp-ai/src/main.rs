@@ -80,6 +80,52 @@ fn create_log_file(base_path: &Path) -> anyhow::Result<fs::File> {
     Ok(fs::File::create(file_path)?)
 }
 
+fn init_logger(_args: &Args) {
+    // Use _args since we ignore command-line args for now
+    // Determine log level from environment variable, default to "info"
+    let log_level = std::env::var("LSP_AI_LOG").unwrap_or_else(|_| "info".to_string());
+    // Build the base subscriber
+    let builder = FmtSubscriber::builder()
+        .with_env_filter(EnvFilter::new(&log_level)) // Use the determined level
+        .with_ansi(false); // Disable color codes for file
+
+    // --- Force logging to a specific file for debugging ---
+    let log_file_path = "/tmp/lsp-ai-debug.log"; // Using a fixed, easy-to-find path
+                                                 // Use println! here because tracing might not be fully initialized yet if File::create fails
+    println!("LSP-AI: Attempting to log to {}", log_file_path);
+
+    match File::create(&log_file_path) {
+        Ok(log_file) => {
+            // Configure logging to the file
+            builder
+                .with_writer(Mutex::new(log_file)) // Use Mutex for basic thread safety
+                // .without_time() // Optional: comment out if you WANT timestamps
+                .init(); // Initialize logging
+                         // Now tracing is initialized (hopefully) for this branch
+        }
+        Err(e) => {
+            // Fallback to stderr if file creation fails
+            eprintln!(
+                "LSP-AI: Failed to create log file '{}': {}",
+                log_file_path, e
+            );
+            FmtSubscriber::builder() // Rebuild because builder was consumed by .init() attempt
+                .with_env_filter(EnvFilter::new(&log_level))
+                .with_writer(std::io::stderr)
+                .without_time()
+                .with_ansi(false)
+                .init();
+        }
+    }
+    // --- End forced file logging ---
+
+    // --- ENSURE THE ORIGINAL LOGIC IS COMMENTED OUT OR DELETED ---
+    /*
+    let builder = FmtSubscriber::builder()... // etc... original code...
+    */
+    // --- End original logic ---
+}
+
 // Builds a tracing subscriber from the `LSP_AI_LOG` environment variable
 // If the variables value is malformed or missing, sets the default log level to ERROR
 fn init_logger(args: &Args) {
