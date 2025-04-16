@@ -853,7 +853,7 @@ async fn do_generate(
     // This line below (the let params) takes the parameters that were loaded from your TOML configuration (the [language-server.lsp-ai.config.chat.parameters] section) which are stored inside the incoming request object.
     // It converts them into a serde_json::Value. At this point, params contains your correctly structured systemInstruction and generationConfig, but nothing else.
 
-    let mut params = serde_json::to_value(request.params.parameters.clone()).unwrap();
+    let params = serde_json::to_value(request.params.parameters.clone()).unwrap();
 
     let (tx, rx) = oneshot::channel();
     memory_backend_tx.send(memory_worker::WorkerRequest::Prompt(PromptRequest::new(

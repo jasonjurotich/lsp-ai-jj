@@ -215,10 +215,27 @@ fn main_loop(connection: Connection, args: serde_json::Value) -> Result<()> {
                 } else if request_is::<Generation>(&req) {
                     match cast::<Generation>(req) {
                         Ok((id, params)) => {
+                            // --- Add Logging Here ---
+                            info!(
+                                "Received Generation request (id: {:?}). Parsed GenerationParams:",
+                                id
+                            );
+                            // Print the whole struct using Debug format
+                            info!("{:?}", params);
+
+                            info!(
+                                "GenerationParams.parameters field contents:\n{}",
+                                serde_json::to_string_pretty(&params.parameters).unwrap_or_else(
+                                    |e| format!("Failed to serialize parameters field: {}", e)
+                                )
+                            );
+
                             let generation_request = GenerationRequest::new(id, params);
                             transformer_tx.send(WorkerRequest::Generation(generation_request))?;
                         }
-                        Err(err) => error!("{err:?}"),
+                        Err(err) => {
+                            error!("Failed to cast received request to Generation: {:?}", err);
+                        }
                     }
                 } else if request_is::<GenerationStream>(&req) {
                     match cast::<GenerationStream>(req) {
