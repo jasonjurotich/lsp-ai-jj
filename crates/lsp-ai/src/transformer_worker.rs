@@ -848,12 +848,18 @@ async fn do_generate(
     transformer_backend: &Box<dyn TransformerBackend + Send + Sync>,
     memory_backend_tx: std::sync::mpsc::Sender<memory_worker::WorkerRequest>,
     request: &GenerationRequest,
-    // app_config: &Config,
+    app_config: &Config,
 ) -> anyhow::Result<Response> {
+    info!("Starting do_generate for model: {}", request.params.model);
     // This line below (the let params) takes the parameters that were loaded from your TOML configuration (the [language-server.lsp-ai.config.chat.parameters] section) which are stored inside the incoming request object.
     // It converts them into a serde_json::Value. At this point, params contains your correctly structured systemInstruction and generationConfig, but nothing else.
 
-    let params = serde_json::to_value(request.params.parameters.clone()).unwrap();
+    let mut params = serde_json::to_value(request.params.parameters.clone())
+        .context("Failed to serialize request parameters to JSON Value")?;
+    info!(
+        "Initial params from config: {}",
+        serde_json::to_string_pretty(&params).unwrap_or_default()
+    );
 
     let (tx, rx) = oneshot::channel();
     memory_backend_tx.send(memory_worker::WorkerRequest::Prompt(PromptRequest::new(
@@ -862,119 +868,127 @@ async fn do_generate(
         params.clone(),
         tx,
     )))?;
-    let prompt = rx.await?;
 
-    // let model_name = &request.params.model; // Assuming path is correct
-    // let model_config_option = app_config
-    //     .config // Path within Config struct might differ
-    //     .models // Assuming this is the HashMap<String, ModelConfig>
-    //     .get(model_name);
+    let prompt = rx
+        .await
+        .context("Failed to receive prompt from memory worker")?;
+    info!("Prompt built successfully by memory worker.");
 
-    // let is_gemini = matches!(model_config_option, Some(config::ValidModel::Gemini(_)));
+    // ________________________________________________________________________
+    // First new part added for new code for gemini
+    let history_text = match &prompt {
+        Prompt::ContextAndCode(ctx_code_prompt) => {
+            // Check if .code actually contains tags, otherwise maybe history is empty?
+            if ctx_code_prompt.code.contains("<|user|>")
+                || ctx_code_prompt.code.contains("<|assistant|>")
+            {
+                &ctx_code_prompt.code
+            } else {
+                warn!("Prompt.code does not seem to contain history tags. Proceeding with empty history.");
+                "" // Treat as empty history if no tags found
+            }
+        }
+        Prompt::FIM(_) => {
+            warn!("do_generate called with FIM prompt, history processing skipped.");
+            "" // No history relevant for FIM
+        }
+    };
 
-    // if is_gemini {
-    //     info!(
-    //         "Model '{}' is Gemini type. Preparing 'contents'.",
-    //         model_name
-    //     );
+    let mut chat_history = parse_history_text_to_chat_messages(history_text);
+    info!("Parsed {} messages from history text.", chat_history.len());
 
-    // --- !!! FIND & REPLACE THIS !!! ---
-    // This is the placeholder part. You MUST figure out how to get the
-    // actual Vec<ChatMessage> representing the current conversation history.
-    // Some possibilities (replace the line below with the correct one):
-    // let chat_history: &Vec<ChatMessage> = &request.chat_history; // If history is in the request object
-    // let chat_history: Vec<ChatMessage> = chat_manager.get_history(request.session_id); // If using a chat manager
-    // let chat_history: Vec<ChatMessage> = retrieve_history_somehow();
+    // _____________________________________________________________________________
+    // second new part added for gemini
 
-    //     let chat_history: &Vec<ChatMessage> = &Vec::new(); // Using empty vec as placeholder ONLY
-    //     warn!("Using placeholder (empty) chat history for Gemini. NEEDS ACTUAL HISTORY SOURCE.");
-    //     // --- !!! END OF PLACEHOLDER !!! ---
+    // --- Step 5: Check if the backend is Gemini ---
+    let model_name = &request.params.model;
+    let model_config_option = app_config.config.models.get(model_name);
+    let is_gemini = matches!(model_config_option, Some(config::ValidModel::Gemini(_)));
 
-    //     if chat_history.is_empty() {
-    //         warn!(
-    //             "Chat history is empty. Gemini request might be incomplete or fail if first turn."
-    //         );
-    //     }
+    // --- Step 6: Modify 'params' based on the backend type ---
+    // Ensure 'params' is a mutable JSON object map
+    if let Some(params_map) = params.as_object_mut() {
+        if is_gemini {
+            info!(
+                "Model '{}' is Gemini type. Preparing 'contents'.",
+                model_name
+            );
+            // Remove potentially conflicting "messages" key if present from initial params
+            params_map.remove("messages");
 
-    //     // --- Step 4a: Convert chat history to Gemini format ---
-    //     let gemini_contents: Vec<GeminiContent> = chat_history
-    //         .iter()
-    //         .map(|msg| {
-    //             // Basic conversion, assumes msg.role and msg.content exist and are Strings
-    //             GeminiContent::new(
-    //                 msg.role.clone(),
-    //                 vec![Part {
-    //                     text: msg.content.clone(),
-    //                 }],
-    //             )
-    //         })
-    //         .collect();
-    //     info!(
-    //         "Converted {} history messages to GeminiContent format.",
-    //         gemini_contents.len()
-    //     );
+            // Convert Vec<ChatMessage> to Vec<GeminiContent>
+            let gemini_contents: Vec<GeminiContent> = chat_history // Use the parsed history
+                .into_iter() // Use into_iter if Vec is owned, or iter() if reference
+                .map(|msg| {
+                    GeminiContent::new(
+                        msg.role, // Assumes ChatMessage fields match
+                        vec![Part { text: msg.content }],
+                    )
+                })
+                .collect();
 
-    //     // --- Step 4b: Serialize the Gemini contents to a JSON Value ---
-    //     let contents_value = match serde_json::to_value(gemini_contents) {
-    //         Ok(val) => val,
-    //         Err(e) => {
-    //             error!(
-    //                 "Failed to serialize Vec<GeminiContent> to JSON Value: {}",
-    //                 e
-    //             );
-    //             // Return error as Gemini requires 'contents'
-    //             return Err(anyhow::anyhow!(
-    //                 "Failed to serialize Gemini contents: {}",
-    //                 e
-    //             ));
-    //         }
-    //     };
+            // Serialize and insert "contents"
+            match serde_json::to_value(gemini_contents) {
+                Ok(contents_value) => {
+                    params_map.insert("contents".to_string(), contents_value);
+                    info!("Inserted 'contents' key into params JSON object.");
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to serialize Vec<GeminiContent> to JSON Value: {}",
+                        e
+                    );
+                    return Err(anyhow!("Failed to serialize Gemini contents: {}", e));
+                }
+            }
+        } else {
+            // For Anthropic and potentially others
+            info!(
+                "Model '{}' is not Gemini type. Preparing 'messages'.",
+                model_name
+            );
+            // Remove potentially conflicting "contents" key if present
+            params_map.remove("contents");
 
-    //     // --- Step 4c: Insert the 'contents' Value into the 'params' Value ---
-    //     // We need mutable access to the params Value, assuming it's a JSON object
-    //     if let Some(params_map) = params.as_object_mut() {
-    //         // Insert the "contents" key with the serialized history array
-    //         params_map.insert("contents".to_string(), contents_value);
-    //         info!("Successfully inserted 'contents' key into params JSON object.");
-    //     } else {
-    //         // This should not happen if params came from a valid TOML table, but handle it just in case.
-    //         error!("Cannot insert 'contents' because 'params' is not a JSON object.");
-    //         return Err(anyhow::anyhow!(
-    //             "Cannot add contents, params structure is not a JSON object"
-    //         ));
-    //     }
-    // } // End of `if is_gemini` block
+            // Filter out empty messages AFTER parsing (the parser should ideally handle this, but double-check)
+            // Anthropic specifically failed with an empty assistant message in the middle.
+            // The parser above should avoid creating empty messages if trim().is_empty() checks work.
+            // Let's keep a check just in case the parser implementation changes.
+            let original_len = chat_history.len();
+            chat_history.retain(|msg| !msg.content.is_empty());
+            if chat_history.len() < original_len {
+                warn!(
+                    "Filtered out {} potentially empty messages for non-Gemini backend.",
+                    original_len - chat_history.len()
+                );
+            }
 
-    // // --- Step 5: Call the backend's do_generate with the (potentially modified) params ---
-    //     info!("Calling backend.do_generate for model '{}'. Final params:\n{}",
-    //         model_name,
-    //         serde_json::to_string_pretty(&params).unwrap_or_else(|_| "Failed to log params".to_string())
-    //     );
+            // Serialize Vec<ChatMessage> and insert "messages"
+            match serde_json::to_value(chat_history) {
+                Ok(messages_value) => {
+                    params_map.insert("messages".to_string(), messages_value);
+                    info!("Inserted 'messages' key into params JSON object.");
+                }
+                Err(e) => {
+                    error!("Failed to serialize Vec<ChatMessage> to JSON Value: {}", e);
+                    return Err(anyhow!("Failed to serialize chat history messages: {}", e));
+                }
+            }
+        }
+    } else {
+        error!("'params' is not a JSON object, cannot add history.");
+        return Err(anyhow!("Initial parameters structure is not a JSON object"));
+    }
 
-    //     let backend_response = transformer_backend.do_generate(&prompt, params).await // Pass the final params
-    //         .with_context(|| format!("Backend failed executing do_generate for model '{}'", model_name))?;
-    //     info!("Received response from backend.do_generate.");
+    // --- Step 7: Call the backend's do_generate ---
+    info!(
+        "Calling backend.do_generate for model '{}'. Final params:\n{}",
+        model_name,
+        serde_json::to_string_pretty(&params)
+            .unwrap_or_else(|_| "Failed to log params".to_string())
+    );
 
-    //     // --- Step 6: Post-process the generated text ---
-    //     let processed_text = post_process_response(
-    //         backend_response.generated_text, // Assuming DoGenerationResponse has this field
-    //         &prompt,
-    //         &request.params.post_process, // Assuming request has post_process config
-    //     );
-    //     info!("Response post-processed.");
-
-    //     // --- Step 7: Format and return the final Response ---
-    //     let result = GenerateResult {
-    //         generated_text: processed_text,
-    //     };
-    //     let result_value = serde_json::to_value(result)
-    //         .context("Failed to serialize final GenerateResult")?;
-
-    //     Ok(Response {
-    //         id: request.id.clone(),
-    //         result: Some(result_value),
-    //         error: None,
-    //     })
+    // _____________________________________________________________________________
 
     let mut response = transformer_backend.do_generate(&prompt, params).await?;
     response.generated_text = post_process_response(
@@ -986,7 +1000,10 @@ async fn do_generate(
     let result = GenerateResult {
         generated_text: response.generated_text,
     };
-    let result = serde_json::to_value(result).unwrap();
+
+    let result =
+        serde_json::to_value(result).context("Failed to serialize final GenerateResult")?;
+
     Ok(Response {
         id: request.id.clone(),
         result: Some(result),
@@ -1199,3 +1216,346 @@ impl ModelConfig {
     }
 }
 */
+
+fn parse_history_text_to_chat_messages(history_text: &str) -> Vec<ChatMessage> {
+    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(<\|user\|>|<\|assistant\|>)").unwrap());
+
+    let mut messages = Vec::new();
+    let mut last_pos = 0;
+
+    // Default role for any text before the first tag, or after the last assistant tag
+    let mut current_role = "user".to_string();
+
+    for mat in RE.find_iter(history_text) {
+        // Get the text chunk *before* the tag we just found
+        let chunk = history_text[last_pos..mat.start()].trim();
+
+        // Add the chunk with the PREVIOUS role if it's not empty
+        if !chunk.is_empty() {
+            messages.push(ChatMessage::new(current_role.clone(), chunk.to_string()));
+        }
+
+        // Determine the role specified by the CURRENT tag for the *next* chunk
+        current_role = if mat.as_str() == "<|user|>" {
+            "user".to_string()
+        } else {
+            "assistant".to_string()
+        };
+
+        // Update position to be after the tag for the next iteration
+        last_pos = mat.end();
+    }
+
+    // Add the final chunk of text after the last tag (if any)
+    let final_chunk = history_text[last_pos..].trim();
+    if !final_chunk.is_empty() {
+        messages.push(ChatMessage::new(current_role, final_chunk.to_string()));
+    }
+
+    messages
+}
+
+// Necessary imports at top of transformer_worker.rs
+
+// Include or import the parse_history_text_to_chat_messages function defined above
+
+async fn do_generate(
+    transformer_backend: &Box<dyn TransformerBackend + Send + Sync>,
+    memory_backend_tx: std::sync::mpsc::Sender<memory_worker::WorkerRequest>,
+    request: &GenerationRequest,
+    app_config: &Config, // Use the renamed config variable
+) -> anyhow::Result<Response> {
+    info!("Starting do_generate for model: {}", request.params.model);
+
+    // --- Step 1: Get parameters initially loaded from TOML config ---
+    let mut params = serde_json::to_value(request.params.parameters.clone())
+        .context("Failed to serialize request parameters to JSON Value")?;
+    info!(
+        "Initial params from config: {}",
+        serde_json::to_string_pretty(&params).unwrap_or_default()
+    );
+
+    // --- Step 2: Build the Prompt (which contains the tagged history in .code) ---
+    let (prompt_tx, prompt_rx) = oneshot::channel();
+    memory_backend_tx.send(memory_worker::WorkerRequest::Prompt(PromptRequest::new(
+        request.params.text_document_position.clone(),
+        transformer_backend.get_prompt_type(&params)?, // Assuming this method exists
+        params.clone(),
+        prompt_tx,
+    )))?;
+    let prompt = prompt_rx
+        .await
+        .context("Failed to receive prompt from memory worker")?;
+    info!("Prompt built successfully by memory worker.");
+
+    // --- Step 3: Extract history text from the prompt ---
+    // Handle the Prompt enum to get the text containing history (likely .code)
+    let history_text = match &prompt {
+        Prompt::ContextAndCode(ctx_code_prompt) => {
+            // Check if .code actually contains tags, otherwise maybe history is empty?
+            if ctx_code_prompt.code.contains("<|user|>")
+                || ctx_code_prompt.code.contains("<|assistant|>")
+            {
+                &ctx_code_prompt.code
+            } else {
+                warn!("Prompt.code does not seem to contain history tags. Proceeding with empty history.");
+                "" // Treat as empty history if no tags found
+            }
+        }
+        Prompt::FIM(_) => {
+            warn!("do_generate called with FIM prompt, history processing skipped.");
+            "" // No history relevant for FIM
+        }
+    };
+
+    // --- Step 4: Parse history text into standard ChatMessage format ---
+    let mut chat_history = parse_history_text_to_chat_messages(history_text);
+    info!("Parsed {} messages from history text.", chat_history.len());
+
+    // --- Step 5: Check if the backend is Gemini ---
+    let model_name = &request.params.model;
+    let model_config_option = app_config.config.models.get(model_name);
+    let is_gemini = matches!(model_config_option, Some(config::ValidModel::Gemini(_)));
+
+    // --- Step 6: Modify 'params' based on the backend type ---
+    // Ensure 'params' is a mutable JSON object map
+    if let Some(params_map) = params.as_object_mut() {
+        if is_gemini {
+            info!(
+                "Model '{}' is Gemini type. Preparing 'contents'.",
+                model_name
+            );
+            // Remove potentially conflicting "messages" key if present from initial params
+            params_map.remove("messages");
+
+            // Convert Vec<ChatMessage> to Vec<GeminiContent>
+            let gemini_contents: Vec<GeminiContent> = chat_history // Use the parsed history
+                .into_iter() // Use into_iter if Vec is owned, or iter() if reference
+                .map(|msg| {
+                    GeminiContent::new(
+                        msg.role, // Assumes ChatMessage fields match
+                        vec![Part { text: msg.content }],
+                    )
+                })
+                .collect();
+
+            // Serialize and insert "contents"
+            match serde_json::to_value(gemini_contents) {
+                Ok(contents_value) => {
+                    params_map.insert("contents".to_string(), contents_value);
+                    info!("Inserted 'contents' key into params JSON object.");
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to serialize Vec<GeminiContent> to JSON Value: {}",
+                        e
+                    );
+                    return Err(anyhow!("Failed to serialize Gemini contents: {}", e));
+                }
+            }
+        } else {
+            // For Anthropic and potentially others
+            info!(
+                "Model '{}' is not Gemini type. Preparing 'messages'.",
+                model_name
+            );
+            // Remove potentially conflicting "contents" key if present
+            params_map.remove("contents");
+
+            // Filter out empty messages AFTER parsing (the parser should ideally handle this, but double-check)
+            // Anthropic specifically failed with an empty assistant message in the middle.
+            // The parser above should avoid creating empty messages if trim().is_empty() checks work.
+            // Let's keep a check just in case the parser implementation changes.
+            let original_len = chat_history.len();
+            chat_history.retain(|msg| !msg.content.is_empty());
+            if chat_history.len() < original_len {
+                warn!(
+                    "Filtered out {} potentially empty messages for non-Gemini backend.",
+                    original_len - chat_history.len()
+                );
+            }
+
+            // Serialize Vec<ChatMessage> and insert "messages"
+            match serde_json::to_value(chat_history) {
+                Ok(messages_value) => {
+                    params_map.insert("messages".to_string(), messages_value);
+                    info!("Inserted 'messages' key into params JSON object.");
+                }
+                Err(e) => {
+                    error!("Failed to serialize Vec<ChatMessage> to JSON Value: {}", e);
+                    return Err(anyhow!("Failed to serialize chat history messages: {}", e));
+                }
+            }
+        }
+    } else {
+        error!("'params' is not a JSON object, cannot add history.");
+        return Err(anyhow!("Initial parameters structure is not a JSON object"));
+    }
+
+    // --- Step 7: Call the backend's do_generate ---
+    info!(
+        "Calling backend.do_generate for model '{}'. Final params:\n{}",
+        model_name,
+        serde_json::to_string_pretty(&params)
+            .unwrap_or_else(|_| "Failed to log params".to_string())
+    );
+
+    let backend_response = transformer_backend
+        .do_generate(&prompt, params) // Pass the final, modified params
+        .await
+        .with_context(|| {
+            format!(
+                "Backend failed executing do_generate for model '{}'",
+                model_name
+            )
+        })?;
+    info!("Received response from backend.do_generate.");
+
+    // --- Step 8: Post-process the generated text ---
+    let processed_text = post_process_response(
+        backend_response.generated_text,
+        &prompt,
+        &request.params.post_process,
+    );
+    info!("Response post-processed.");
+
+    // --- Step 9: Format and return the final Response ---
+    let result = GenerateResult {
+        generated_text: processed_text,
+    };
+    let result_value =
+        serde_json::to_value(result).context("Failed to serialize final GenerateResult")?;
+
+    Ok(Response {
+        id: request.id.clone(),
+        result: Some(result_value),
+        error: None,
+    })
+}
+
+// --- Assume helper function exists ---
+fn post_process_response(
+    text: String,
+    _prompt: &Prompt,
+    _post_process_config: &Option<Value>,
+) -> String {
+    text.trim().to_string()
+}
+
+// --- Assume helper struct exists ---
+// #[derive(Serialize)]
+// struct GenerateResult {
+//     generated_text: String,
+// }
+
+// let model_name = &request.params.model; // Assuming path is correct
+// let model_config_option = app_config
+//     .config // Path within Config struct might differ
+//     .models // Assuming this is the HashMap<String, ModelConfig>
+//     .get(model_name);
+
+// let is_gemini = matches!(model_config_option, Some(config::ValidModel::Gemini(_)));
+
+// if is_gemini {
+//     info!(
+//         "Model '{}' is Gemini type. Preparing 'contents'.",
+//         model_name
+//     );
+
+// --- !!! FIND & REPLACE THIS !!! ---
+// This is the placeholder part. You MUST figure out how to get the
+// actual Vec<ChatMessage> representing the current conversation history.
+// Some possibilities (replace the line below with the correct one):
+// let chat_history: &Vec<ChatMessage> = &request.chat_history; // If history is in the request object
+// let chat_history: Vec<ChatMessage> = chat_manager.get_history(request.session_id); // If using a chat manager
+// let chat_history: Vec<ChatMessage> = retrieve_history_somehow();
+
+//     let chat_history: &Vec<ChatMessage> = &Vec::new(); // Using empty vec as placeholder ONLY
+//     warn!("Using placeholder (empty) chat history for Gemini. NEEDS ACTUAL HISTORY SOURCE.");
+//     // --- !!! END OF PLACEHOLDER !!! ---
+
+//     if chat_history.is_empty() {
+//         warn!(
+//             "Chat history is empty. Gemini request might be incomplete or fail if first turn."
+//         );
+//     }
+
+//     // --- Step 4a: Convert chat history to Gemini format ---
+//     let gemini_contents: Vec<GeminiContent> = chat_history
+//         .iter()
+//         .map(|msg| {
+//             // Basic conversion, assumes msg.role and msg.content exist and are Strings
+//             GeminiContent::new(
+//                 msg.role.clone(),
+//                 vec![Part {
+//                     text: msg.content.clone(),
+//                 }],
+//             )
+//         })
+//         .collect();
+//     info!(
+//         "Converted {} history messages to GeminiContent format.",
+//         gemini_contents.len()
+//     );
+
+//     // --- Step 4b: Serialize the Gemini contents to a JSON Value ---
+//     let contents_value = match serde_json::to_value(gemini_contents) {
+//         Ok(val) => val,
+//         Err(e) => {
+//             error!(
+//                 "Failed to serialize Vec<GeminiContent> to JSON Value: {}",
+//                 e
+//             );
+//             // Return error as Gemini requires 'contents'
+//             return Err(anyhow::anyhow!(
+//                 "Failed to serialize Gemini contents: {}",
+//                 e
+//             ));
+//         }
+//     };
+
+//     // --- Step 4c: Insert the 'contents' Value into the 'params' Value ---
+//     // We need mutable access to the params Value, assuming it's a JSON object
+//     if let Some(params_map) = params.as_object_mut() {
+//         // Insert the "contents" key with the serialized history array
+//         params_map.insert("contents".to_string(), contents_value);
+//         info!("Successfully inserted 'contents' key into params JSON object.");
+//     } else {
+//         // This should not happen if params came from a valid TOML table, but handle it just in case.
+//         error!("Cannot insert 'contents' because 'params' is not a JSON object.");
+//         return Err(anyhow::anyhow!(
+//             "Cannot add contents, params structure is not a JSON object"
+//         ));
+//     }
+// } // End of `if is_gemini` block
+
+// // --- Step 5: Call the backend's do_generate with the (potentially modified) params ---
+//     info!("Calling backend.do_generate for model '{}'. Final params:\n{}",
+//         model_name,
+//         serde_json::to_string_pretty(&params).unwrap_or_else(|_| "Failed to log params".to_string())
+//     );
+
+//     let backend_response = transformer_backend.do_generate(&prompt, params).await // Pass the final params
+//         .with_context(|| format!("Backend failed executing do_generate for model '{}'", model_name))?;
+//     info!("Received response from backend.do_generate.");
+
+//     // --- Step 6: Post-process the generated text ---
+//     let processed_text = post_process_response(
+//         backend_response.generated_text, // Assuming DoGenerationResponse has this field
+//         &prompt,
+//         &request.params.post_process, // Assuming request has post_process config
+//     );
+//     info!("Response post-processed.");
+
+//     // --- Step 7: Format and return the final Response ---
+//     let result = GenerateResult {
+//         generated_text: processed_text,
+//     };
+//     let result_value = serde_json::to_value(result)
+//         .context("Failed to serialize final GenerateResult")?;
+
+//     Ok(Response {
+//         id: request.id.clone(),
+//         result: Some(result_value),
+//         error: None,
+//     })
