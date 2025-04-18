@@ -894,11 +894,13 @@ async fn do_generate(
         }
     };
 
-    let mut chat_history = parse_history_text_to_chat_messages(history_text);
-    info!("Parsed {} messages from history text.", chat_history.len());
+    // let mut chat_history = parse_history_text_to_chat_messages(history_text);
+    // info!("Parsed {} messages from history text.", chat_history.len());
 
+    let mut chat_history: Vec<ChatMessage> = Vec::new(); // <--- USE THIS LINE
+    info!("Temporarily bypassing history parser, using empty history for testing.");
     // _____________________________________________________________________________
-    // second new part added for gemini
+    // Second new part added for gemini
 
     // --- Step 5: Check if the backend is Gemini ---
     let model_name = &request.params.model;
