@@ -1265,6 +1265,12 @@ fn parse_history_text_to_chat_messages(history_text: &str) -> Vec<ChatMessage> {
     // Default role for any text before the first tag, or after the last assistant tag
     let mut current_role = "user".to_string();
 
+    info!(
+        "Parsing history text (len {}): \"{}\"",
+        history_text.len(),
+        history_text
+    ); // Log input
+
     for mat in RE.find_iter(history_text) {
         // Get the text chunk *before* the tag we just found
         let chunk = history_text[last_pos..mat.start()].trim();
@@ -1283,7 +1289,18 @@ fn parse_history_text_to_chat_messages(history_text: &str) -> Vec<ChatMessage> {
 
         // Update position to be after the tag for the next iteration
         last_pos = mat.end();
+        info!("New last_pos: {}", last_pos);
     }
+
+    if last_pos > history_text.len() {
+        error!(
+            "PANIC IMMINENT: final last_pos ({}) > history_text.len() ({})",
+            last_pos,
+            history_text.len()
+        );
+        return messages; // Return what we have so far
+    }
+    info!("Slicing final chunk history_text[{}..]", last_pos);
 
     // Add the final chunk of text after the last tag (if any)
     let final_chunk = history_text[last_pos..].trim();
