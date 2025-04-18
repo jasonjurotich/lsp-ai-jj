@@ -1,4 +1,4 @@
-use anyhow::Context;
+use anyhow::{anyhow, Context, Result};
 use lsp_server::{Connection, Message, RequestId, Response};
 use lsp_types::{
     CodeAction, CodeActionParams, CompletionItem, CompletionItemKind, CompletionList,
@@ -1099,6 +1099,26 @@ mod tests {
                 json!({"model": "deepseek-coder:1.3b-base"}),
             )?)
             .try_into()?;
+
+        let config_json = json!({
+            "config": { // Assuming top-level 'config' key holds LspAiConfig
+                "models": {
+                     "model1": { // Matches the model name used in GenerationParams below
+                         "type": "ollama", // Type needed for ValidModel enum deserialization
+                         // Include specific fields expected by config::Ollama struct
+                         "model": "deepseek-coder:1.3b-base"
+                         // Add other required ollama fields here if needed
+                     }
+                },
+                "memory": { "file_store": {} } // Minimal valid memory config
+                // Add defaults/empty values for other required fields in LspAiConfig
+                // e.g., "completion": null, "actions": [], "chat": []
+            }
+            // Add other top-level fields for Config if any exist
+        });
+        // Create the Config instance using its constructor
+
+        let app_config = Config::new(config_json)?;
         let generation_request = GenerationRequest::new(
             serde_json::from_value(json!(0))?,
             serde_json::from_value(json!({
@@ -1114,7 +1134,14 @@ mod tests {
                 }
             }))?,
         );
-        let result = do_generate(&transformer_backend, memory_tx, &generation_request).await?;
+
+        let result = do_generate(
+            &transformer_backend,
+            memory_tx,
+            &generation_request,
+            &app_config,
+        )
+        .await?;
 
         assert_eq!(
             " x * y",
