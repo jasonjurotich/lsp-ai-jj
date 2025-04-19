@@ -134,7 +134,9 @@ fn initialize_logging(args: &Args) -> Option<WorkerGuard> {
         // Create the actual layer that uses the file writer
         let file_layer = tracing_subscriber::fmt::layer()
           .with_writer(non_blocking_writer) // Use the non-blocking file writer
-          .with_ansi(false); // No colors in files
+          .with_ansi(true)
+          .with_target(true)
+          .with_level(true);
 
         file_layer_option = Some(file_layer); // Store the layer itself
         log_guard = Some(guard); // Store the guard - IMPORTANT to return this
