@@ -25,7 +25,7 @@ fn format_gemini_contents(
         m.parts
           .iter()
           .map(|p| Part {
-            text: format_prompt_in_str(&p.text, &prompt),
+            text: format_prompt_in_str(&p.text, prompt),
           })
           .collect(),
       )
@@ -140,14 +140,14 @@ impl Gemini {
       .json()
       .await?;
 
+    info!(
+      "Raw response from Gemini API: {}",
+      serde_json::to_string_pretty(&res).unwrap_or_default()
+    );
+
     if let Some(error) = res.get("error") {
       anyhow::bail!("{:?}", error.to_string())
     } else if let Some(candidates) = res.get("candidates") {
-      info!(
-        "Raw response from Gemini API: {}",
-        serde_json::to_string_pretty(&res).unwrap_or_default()
-      );
-
       Ok(
         candidates
           .get(0)
