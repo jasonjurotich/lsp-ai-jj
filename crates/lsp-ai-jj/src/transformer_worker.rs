@@ -472,6 +472,196 @@ struct CodeActionResolveData {
   range: Range,
 }
 
+// async fn do_chat_code_action_resolve(
+//   action: &config::Chat,
+//   transformer_backends: Arc<
+//     HashMap<String, Box<dyn TransformerBackend + Send + Sync>>,
+//   >,
+//   memory_backend_tx: std::sync::mpsc::Sender<memory_worker::WorkerRequest>,
+//   request: &CodeActionResolveRequest,
+// ) -> anyhow::Result<CodeAction> {
+//   info!(
+//     "Entered do_chat_code_action_resolve for model '{}' (request id: {:?})",
+//     action.model, request.id
+//   );
+//   let transformer_backend =
+//     transformer_backends.get(&action.model).with_context(|| {
+//       format!(
+//         "model: {} not found when resolving code action",
+//         action.model
+//       )
+//     })?;
+//   info!("Found transformer backend for model: {}", action.model);
+
+//   let data: CodeActionResolveData = match serde_json::from_value(
+//     request
+//       .params
+//       .data
+//       .clone()
+//       .context("Missing 'data' in resolve request")?,
+//   ) {
+//     Ok(d) => d,
+//     Err(e) => {
+//       error!(
+//         "Failed deserializing CodeActionResolveData: {}. Data: {:?}",
+//         e, request.params.data
+//       );
+//       return Err(anyhow!(e).context("Deserializing CodeActionResolveData"));
+//     }
+//   };
+
+//   info!(
+//     "Deserialized CodeActionResolveData for URI: {:#?}",
+//     data.text_document.uri
+//   );
+
+//   // Get the file
+//   let (tx, rx) = oneshot::channel();
+
+//   info!(
+//     "Requesting file text from memory worker for URI: {:#?}",
+//     data.text_document.uri
+//   );
+
+//   memory_backend_tx.send(memory_worker::WorkerRequest::File(
+//     FileRequest::new(
+//       TextDocumentIdentifier {
+//         uri: data.text_document.uri.clone(),
+//       },
+//       tx,
+//     ),
+//   ))?;
+
+//   let file_text = rx
+//     .await
+//     .context("Receiving file text from memory worker failed")?;
+//   info!("Received file text (length {}).", file_text.len());
+
+//   let (messages_text, text_edit_line, text_edit_char) =
+//     if action.trigger.is_empty() {
+//       info!("Chat action trigger is empty, using full file text.");
+//       (
+//         file_text.as_str(),
+//         file_text.lines().count(),
+//         file_text.lines().last().unwrap_or("").chars().count(),
+//       )
+//     } else {
+//       info!("Splitting file text using trigger: '{}'", action.trigger);
+
+//       let mut split = file_text.splitn(2, &action.trigger);
+
+//       let text_edit_line = split
+//         .next()
+//         .context("trigger not found when resolving chat code action")?
+//         .lines()
+//         .count();
+
+//       let messages_text = split
+//         .next()
+//         .context("trigger not found when resolving chat code action")?;
+//       (
+//         messages_text,
+//         text_edit_line + messages_text.lines().count(),
+//         messages_text.lines().last().unwrap_or("").chars().count(),
+//       )
+//     };
+
+//   // Parse into messages
+//   // NOTE: We are making some asumptions about the parameters the endpoint takes
+//   // Some APIs like Gemini do not take the messages in this format. We should add
+//   // some kind of configuration option for this
+//   let mut new_messages = vec![];
+//   let mut current_message = String::new();
+//   let mut is_user = true;
+//   for line in messages_text.lines() {
+//     if is_user && line.contains("<|assistant|>") {
+//       new_messages.push(serde_json::json!({
+//           "role": "user",
+//           "content": current_message
+//       }));
+//       current_message = String::new();
+//       is_user = false;
+//     } else if !is_user && line.contains("<|user|>") {
+//       new_messages.push(serde_json::json!({
+//           "role": "assistant",
+//           "content": current_message
+//       }));
+//       current_message = String::new();
+//       is_user = true;
+//     } else {
+//       current_message += line;
+//     }
+//   }
+//   if current_message.len() > 0 {
+//     if is_user {
+//       new_messages.push(serde_json::json!({
+//           "role": "user",
+//           "content": current_message
+//       }));
+//     } else {
+//       new_messages.push(serde_json::json!({
+//           "role": "assistant",
+//           "content": current_message
+//       }));
+//     }
+//   }
+
+//   // Add the messages to the params messages
+//   // NOTE: Once again we are making some assumptions that the messages key is even the right key to use here
+//   let mut params = action.parameters.clone();
+//   if let Some(messages) = params.get_mut("messages") {
+//     messages
+//       .as_array_mut()
+//       .context("`messages` key must be an array")?
+//       .append(&mut new_messages);
+//   } else {
+//     params.insert(
+//       "messages".to_string(),
+//       serde_json::to_value(&new_messages).unwrap(),
+//     );
+//   }
+
+//   let params = serde_json::to_value(&params).unwrap();
+
+//   // Build the prompt
+//   let (tx, rx) = oneshot::channel();
+//   memory_backend_tx.send(memory_worker::WorkerRequest::Prompt(
+//     PromptRequest::new(
+//       TextDocumentPositionParams {
+//         text_document: data.text_document.clone(),
+//         position: data.range.start,
+//       },
+//       transformer_backend.get_prompt_type(&params)?,
+//       params.clone(),
+//       tx,
+//     ),
+//   ))?;
+//   let prompt = rx.await?;
+
+//   // Get the response
+//   let mut response = transformer_backend.do_completion(&prompt, params).await?;
+//   response.insert_text =
+//     format!("\n\n<|assistant|>\n{}\n\n<|user|>\n", response.insert_text);
+
+//   let edit = TextEdit::new(
+//     Range::new(
+//       Position::new(text_edit_line as u32, text_edit_char as u32),
+//       Position::new(text_edit_line as u32, text_edit_char as u32),
+//     ),
+//     response.insert_text.clone(),
+//   );
+//   let changes = HashMap::from([(data.text_document.uri, vec![edit])]);
+
+//   Ok(CodeAction {
+//     title: action.action_display_name.clone(),
+//     edit: Some(WorkspaceEdit {
+//       changes: Some(changes),
+//       ..Default::default()
+//     }),
+//     ..Default::default()
+//   })
+// }
+
 async fn do_chat_code_action_resolve(
   action: &config::Chat,
   transformer_backends: Arc<
@@ -479,155 +669,252 @@ async fn do_chat_code_action_resolve(
   >,
   memory_backend_tx: std::sync::mpsc::Sender<memory_worker::WorkerRequest>,
   request: &CodeActionResolveRequest,
-) -> anyhow::Result<CodeAction> {
+  app_config: &Config,
+) -> Result<CodeAction> {
+  // Use anyhow::Result explicitly
+  info!(
+    "Entered do_chat_code_action_resolve for model '{}' (request id: {:?})",
+    action.model, request.id
+  );
+
+  // --- Get Backend ---
   let transformer_backend =
     transformer_backends.get(&action.model).with_context(|| {
-      format!(
-        "model: {} not found when resolving code action",
-        action.model
-      )
+      format!("Model '{}' not found in backends map", action.model)
     })?;
+  info!("Found transformer backend for model: {}", action.model);
 
+  // --- Get Request Data ---
   let data: CodeActionResolveData = serde_json::from_value(
     request
       .params
       .data
       .clone()
-      .context("the `data` field is required to resolve a code action")?,
+      .context("Missing 'data' in resolve request")?,
   )
-  .context(
-    "the `data` field could not be deserialized when resolving the code action",
-  )?;
+  .context("Deserializing CodeActionResolveData failed")?;
+  info!(
+    "Deserialized CodeActionResolveData for URI: {:#?}",
+    data.text_document.uri
+  );
 
-  // Get the file
-  let (tx, rx) = oneshot::channel();
+  // --- Get Full File Text ---
+  let (file_tx, file_rx) = oneshot::channel();
+  info!(
+    "Requesting file text from memory worker for URI: {:#?}",
+    data.text_document.uri
+  );
   memory_backend_tx.send(memory_worker::WorkerRequest::File(
     FileRequest::new(
       TextDocumentIdentifier {
         uri: data.text_document.uri.clone(),
       },
-      tx,
+      file_tx,
     ),
   ))?;
-  let file_text = rx.await?;
+  let file_text = file_rx
+    .await
+    .context("Receiving file text from memory worker failed")?;
+  info!("Received file text (length {}).", file_text.len());
 
-  let (messages_text, text_edit_line, text_edit_char) = if action.trigger == ""
-  {
-    (
-      file_text.as_str(),
-      file_text.lines().count(),
-      file_text.lines().last().unwrap_or("").chars().count(),
-    )
+  // --- Find History Text ---
+  let (messages_text, text_edit_line, text_edit_char) =
+    if action.trigger.is_empty() {
+      info!("Chat action trigger is empty, using full file text.");
+      (
+        file_text.as_str(),
+        file_text.lines().count(),
+        file_text.lines().last().unwrap_or("").chars().count(),
+      )
+      // ... (logic as before) ...
+    } else {
+      info!("Splitting file text using trigger: '{}'", action.trigger);
+      let mut split = file_text.splitn(2, &action.trigger);
+      let before_trigger =
+        split.next().context("Trigger not found in file text")?;
+      let messages_text_slice =
+        split.next().context("Text after trigger not found")?;
+      let before_lines = before_trigger.lines().count();
+      let history_lines = messages_text_slice.lines().count();
+      let last_history_line_len = messages_text_slice
+        .lines()
+        .last()
+        .unwrap_or("")
+        .chars()
+        .count();
+      info!(
+        "Found text after trigger (length {}).",
+        messages_text_slice.len()
+      );
+      (
+        messages_text_slice,
+        before_lines + history_lines,
+        last_history_line_len,
+      )
+      // ... (logic as before) ...
+    };
+  info!(
+    "History text to parse (messages_text):\n---\n{}\n---",
+    messages_text
+  );
+  info!(
+    "Calculated insertion point: line={}, char={}",
+    text_edit_line, text_edit_char
+  );
+
+  // --- Parse History ---
+  info!("Calling parse_history_text_to_chat_messages...");
+  let mut chat_history = parse_history_text_to_chat_messages(messages_text);
+  info!("Parsed {} messages.", chat_history.len());
+
+  // --- Prepare parameters ---
+  let mut params_map = action.parameters.clone(); // Type is HashMap<String, Value>
+  info!(
+    "Initial params from action config (as HashMap): {:?}",
+    params_map
+  );
+
+  let model_name = &action.model;
+  let model_config_option = app_config.config.models.get(model_name);
+  let is_gemini =
+    matches!(model_config_option, Some(config::ValidModel::Gemini(_)));
+  info!("Model '{}' is_gemini = {}", model_name, is_gemini);
+
+  // Modify the params_map directly
+  if is_gemini {
+    info!("Preparing Gemini 'contents'.");
+    params_map.remove("messages");
+    let gemini_contents: Vec<GeminiContent> = chat_history
+      .into_iter()
+      .map(|msg| GeminiContent::new(msg.role, vec![Part { text: msg.content }]))
+      .collect();
+    info!(
+      "Converted {} messages to GeminiContent.",
+      gemini_contents.len()
+    );
+
+    // Serialize and insert "contents" with explicit error handling
+    match serde_json::to_value(gemini_contents) {
+      Ok(contents_val) => {
+        params_map.insert("contents".to_string(), contents_val);
+        info!("Inserted 'contents' key into params HashMap.");
+      }
+      Err(e) => {
+        // Log the specific error
+        error!(
+          "Failed to serialize Vec<GeminiContent> to JSON Value: {}",
+          e
+        );
+        // Return a new anyhow Error, adding context
+        return Err(anyhow!(e).context("Serializing Gemini contents failed"));
+      }
+    }
   } else {
-    let mut split = file_text.splitn(2, &action.trigger);
-    let text_edit_line = split
-      .next()
-      .context("trigger not found when resolving chat code action")?
-      .lines()
-      .count();
-    let messages_text = split
-      .next()
-      .context("trigger not found when resolving chat code action")?;
-    (
-      messages_text,
-      text_edit_line + messages_text.lines().count(),
-      messages_text.lines().last().unwrap_or("").chars().count(),
-    )
+    // Non-Gemini
+    info!("Preparing non-Gemini 'messages'.");
+    params_map.remove("contents");
+    let original_len = chat_history.len();
+    chat_history.retain(|msg| !msg.content.trim().is_empty()); // Filter empty
+    if chat_history.len() < original_len {
+      warn!(
+        "Filtered {} empty messages.",
+        original_len - chat_history.len()
+      );
+    }
+    info!("Using {} non-empty messages.", chat_history.len());
+
+    // Serialize Vec<ChatMessage> and insert "messages" with explicit error handling
+    match serde_json::to_value(chat_history) {
+      Ok(messages_val) => {
+        params_map.insert("messages".to_string(), messages_val);
+        info!("Inserted 'messages' key into params HashMap.");
+      }
+      Err(e) => {
+        // Log the specific error
+        error!("Failed to serialize Vec<ChatMessage> to JSON Value: {}", e);
+        // Return a new anyhow Error, adding context
+        return Err(anyhow!(e).context("Serializing ChatMessages failed"));
+      }
+    }
+  }
+
+  // Convert the final HashMap back to a serde_json::Value
+  let final_params_value = match serde_json::to_value(&params_map) {
+    Ok(val) => val,
+    Err(e) => {
+      // Log the specific error
+      error!("Failed to serialize final params_map back to Value: {}", e);
+      // Return a new anyhow Error, adding context
+      return Err(anyhow!(e).context("Serializing final parameters map"));
+    }
+  };
+  info!(
+    "Final params Value prepared for backend call:\n{}",
+    serde_json::to_string_pretty(&final_params_value).unwrap_or_default()
+  );
+
+  // --- Build the Prompt object ---
+  let prompt_position = TextDocumentPositionParams {
+    text_document: data.text_document.clone(),
+    position: data.range.start, // Use the start of the range where action was triggered
   };
 
-  // Parse into messages
-  // NOTE: We are making some asumptions about the parameters the endpoint takes
-  // Some APIs like Gemini do not take the messages in this format. We should add
-  // some kind of configuration option for this
-  let mut new_messages = vec![];
-  let mut current_message = String::new();
-  let mut is_user = true;
-  for line in messages_text.lines() {
-    if is_user && line.contains("<|assistant|>") {
-      new_messages.push(serde_json::json!({
-          "role": "user",
-          "content": current_message
-      }));
-      current_message = String::new();
-      is_user = false;
-    } else if !is_user && line.contains("<|user|>") {
-      new_messages.push(serde_json::json!({
-          "role": "assistant",
-          "content": current_message
-      }));
-      current_message = String::new();
-      is_user = true;
-    } else {
-      current_message += line;
-    }
-  }
-  if current_message.len() > 0 {
-    if is_user {
-      new_messages.push(serde_json::json!({
-          "role": "user",
-          "content": current_message
-      }));
-    } else {
-      new_messages.push(serde_json::json!({
-          "role": "assistant",
-          "content": current_message
-      }));
-    }
-  }
-
-  // Add the messages to the params messages
-  // NOTE: Once again we are making some assumptions that the messages key is even the right key to use here
-  let mut params = action.parameters.clone();
-  if let Some(messages) = params.get_mut("messages") {
-    messages
-      .as_array_mut()
-      .context("`messages` key must be an array")?
-      .append(&mut new_messages);
-  } else {
-    params.insert(
-      "messages".to_string(),
-      serde_json::to_value(&new_messages).unwrap(),
-    );
-  }
-
-  let params = serde_json::to_value(&params).unwrap();
-
-  // Build the prompt
-  let (tx, rx) = oneshot::channel();
+  let (prompt_tx, prompt_rx) = oneshot::channel();
+  info!("Requesting prompt object from memory worker.");
   memory_backend_tx.send(memory_worker::WorkerRequest::Prompt(
     PromptRequest::new(
-      TextDocumentPositionParams {
-        text_document: data.text_document.clone(),
-        position: data.range.start,
-      },
-      transformer_backend.get_prompt_type(&params)?,
-      params.clone(),
-      tx,
+      prompt_position,
+      transformer_backend.get_prompt_type(&final_params_value)?,
+      final_params_value.clone(),
+      prompt_tx,
     ),
   ))?;
-  let prompt = rx.await?;
+  let prompt = prompt_rx.await.context("Receiving prompt object failed")?;
+  info!("Received prompt object.");
 
-  // Get the response
-  let mut response = transformer_backend.do_completion(&prompt, params).await?;
-  response.insert_text =
-    format!("\n\n<|assistant|>\n{}\n\n<|user|>\n", response.insert_text);
+  // --- Call the Backend ---
+  info!("Calling backend.do_completion (model '{}').", action.model);
+  let backend_response = transformer_backend
+    .do_completion(&prompt, final_params_value) // Use final Value
+    .await
+    .with_context(|| {
+      format!("Backend do_completion failed for model '{}'", action.model)
+    })?; // This propagates Err from backend
+
+  info!("Received response from backend");
+
+  // --- Format response and create Edit ---
+  let response_text = backend_response.insert_text.trim();
+  let formatted_insert_text =
+    format!("\n\n<|assistant|>\n{}\n\n<|user|>\n", response_text);
+  info!("Formatted response for insertion.");
 
   let edit = TextEdit::new(
+    // Insert at the calculated end point of the history text
     Range::new(
       Position::new(text_edit_line as u32, text_edit_char as u32),
       Position::new(text_edit_line as u32, text_edit_char as u32),
     ),
-    response.insert_text.clone(),
+    formatted_insert_text,
   );
-  let changes = HashMap::from([(data.text_document.uri, vec![edit])]);
 
+  let changes = HashMap::from([(data.text_document.uri, vec![edit])]);
+  info!("Created TextEdit.");
+
+  // --- Return CodeAction ---
+  info!("Successfully resolving CodeAction.");
   Ok(CodeAction {
-    title: action.action_display_name.clone(),
+    title: action.action_display_name.clone(), // Use original title
     edit: Some(WorkspaceEdit {
       changes: Some(changes),
       ..Default::default()
     }),
-    ..Default::default()
+    kind: None, // Keep other fields as needed or default
+    diagnostics: None,
+    command: None,
+    is_preferred: None,
+    disabled: None,
+    data: None, // Resolved actions usually don't need original data
   })
 }
 
@@ -739,6 +1026,7 @@ async fn do_code_action_action_resolve(
     ),
     response.insert_text.clone(),
   );
+
   let changes = HashMap::from([(data.text_document.uri, vec![edit])]);
 
   Ok(CodeAction {
@@ -769,6 +1057,7 @@ async fn do_code_action_resolve(
         transformer_backends,
         memory_backend_tx,
         request,
+        config,
       )
       .await?
     } else {
@@ -825,7 +1114,7 @@ async fn do_code_action_request(
     .collect::<anyhow::Result<Vec<bool>>>()?;
 
   let mut code_actions: Vec<CodeAction> = chats
-    .into_iter()
+    .iter()
     .zip(enabled_chats)
     .filter(|(_, is_enabled)| *is_enabled)
     .map(|(chat, _)| CodeAction {
@@ -841,7 +1130,7 @@ async fn do_code_action_request(
     })
     .collect();
 
-  code_actions.extend(actions.into_iter().map(|action| {
+  code_actions.extend(actions.iter().map(|action| {
     CodeAction {
       title: action.action_display_name.to_owned(),
       data: Some(
@@ -1140,6 +1429,62 @@ async fn do_generate(
   })
 }
 
+fn parse_history_text_to_chat_messages(history_text: &str) -> Vec<ChatMessage> {
+  static RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(<\|user\|>|<\|assistant\|>)").unwrap());
+
+  let mut messages = Vec::new();
+  let mut last_pos = 0;
+
+  // Default role for any text before the first tag, or after the last assistant tag
+  let mut current_role = "user".to_string();
+
+  info!(
+    "Parsing history text (len {}): \"{}\"",
+    history_text.len(),
+    history_text
+  ); // Log input
+
+  for mat in RE.find_iter(history_text) {
+    // Get the text chunk *before* the tag we just found
+    let chunk = history_text[last_pos..mat.start()].trim();
+
+    // Add the chunk with the PREVIOUS role if it's not empty
+    if !chunk.is_empty() {
+      messages.push(ChatMessage::new(current_role.clone(), chunk.to_string()));
+    }
+
+    // Determine the role specified by the CURRENT tag for the *next* chunk
+    current_role = if mat.as_str() == "<|user|>" {
+      "user".to_string()
+    } else {
+      "assistant".to_string()
+    };
+
+    // Update position to be after the tag for the next iteration
+    last_pos = mat.end();
+    info!("New last_pos: {}", last_pos);
+  }
+
+  if last_pos > history_text.len() {
+    error!(
+      "PANIC IMMINENT: final last_pos ({}) > history_text.len() ({})",
+      last_pos,
+      history_text.len()
+    );
+    return messages; // Return what we have so far
+  }
+  info!("Slicing final chunk history_text[{}..]", last_pos);
+
+  // Add the final chunk of text after the last tag (if any)
+  let final_chunk = history_text[last_pos..].trim();
+  if !final_chunk.is_empty() {
+    messages.push(ChatMessage::new(current_role, final_chunk.to_string()));
+  }
+
+  messages
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -1378,62 +1723,6 @@ impl ModelConfig {
     }
 }
 */
-
-fn parse_history_text_to_chat_messages(history_text: &str) -> Vec<ChatMessage> {
-  static RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(<\|user\|>|<\|assistant\|>)").unwrap());
-
-  let mut messages = Vec::new();
-  let mut last_pos = 0;
-
-  // Default role for any text before the first tag, or after the last assistant tag
-  let mut current_role = "user".to_string();
-
-  info!(
-    "Parsing history text (len {}): \"{}\"",
-    history_text.len(),
-    history_text
-  ); // Log input
-
-  for mat in RE.find_iter(history_text) {
-    // Get the text chunk *before* the tag we just found
-    let chunk = history_text[last_pos..mat.start()].trim();
-
-    // Add the chunk with the PREVIOUS role if it's not empty
-    if !chunk.is_empty() {
-      messages.push(ChatMessage::new(current_role.clone(), chunk.to_string()));
-    }
-
-    // Determine the role specified by the CURRENT tag for the *next* chunk
-    current_role = if mat.as_str() == "<|user|>" {
-      "user".to_string()
-    } else {
-      "assistant".to_string()
-    };
-
-    // Update position to be after the tag for the next iteration
-    last_pos = mat.end();
-    info!("New last_pos: {}", last_pos);
-  }
-
-  if last_pos > history_text.len() {
-    error!(
-      "PANIC IMMINENT: final last_pos ({}) > history_text.len() ({})",
-      last_pos,
-      history_text.len()
-    );
-    return messages; // Return what we have so far
-  }
-  info!("Slicing final chunk history_text[{}..]", last_pos);
-
-  // Add the final chunk of text after the last tag (if any)
-  let final_chunk = history_text[last_pos..].trim();
-  if !final_chunk.is_empty() {
-    messages.push(ChatMessage::new(current_role, final_chunk.to_string()));
-  }
-
-  messages
-}
 
 // Necessary imports at top of transformer_worker.rs
 
