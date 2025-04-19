@@ -362,6 +362,10 @@ async fn dispatch_request(
   memory_backend_tx: std::sync::mpsc::Sender<memory_worker::WorkerRequest>,
   config: Config,
 ) {
+  info!(
+    "dispatch_request: Received request (id: {:?}).",
+    request.get_id()
+  );
   let response = match generate_response(
     request.clone(),
     transformer_backends,
@@ -370,7 +374,14 @@ async fn dispatch_request(
   )
   .await
   {
-    Ok(response) => response,
+    Ok(response) => {
+      info!(
+        "dispatch_request: generate_response returned Ok (id: {:?}).",
+        response.id
+      );
+
+      response
+    }
     Err(e) => {
       error!("generating response: {e:?}");
       Response {
@@ -381,9 +392,14 @@ async fn dispatch_request(
     }
   };
 
+  info!("dispatch_request: Attempting to send final response (id: {:?}) back to main thread.", response.id);
   if let Err(e) = connection.sender.send(Message::Response(response)) {
     error!("sending response: {e:?}");
   }
+  info!(
+    "dispatch_request: Finished processing request (id: {:?}).",
+    request.get_id()
+  ); // Use original request id
 }
 
 async fn generate_response(
@@ -410,19 +426,32 @@ async fn generate_response(
         .await
     }
     WorkerRequest::Generation(request) => {
+      info!("generate_response: Handling Generation request (id: {:?}) for model '{}'", request.id, request.params.model);
       let transformer_backend = transformer_backends
         .get(&request.params.model)
         .with_context(|| {
           format!("can't find model: {}", &request.params.model)
         })?;
+      info!("generate_response: Found backend for model '{}'. Calling helper do_generate.", request.params.model);
       do_generate(transformer_backend, memory_backend_tx, &request, &config)
         .await
+        .with_context(|| {
+          format!("helper do_generate failed for id {:?}", request.id)
+        }) // Add context here
     }
     WorkerRequest::GenerationStream(_) => {
       anyhow::bail!("Streaming is not yet supported")
     }
     WorkerRequest::CodeActionRequest(request) => {
-      do_code_action_request(memory_backend_tx, &request, &config).await
+      info!(
+        "generate_response: Handling CodeActionResolveRequest (id: {:?})",
+        request.id
+      );
+      do_code_action_request(memory_backend_tx, &request, &config)
+        .await
+        .with_context(|| {
+          format!("do_code_action_resolve failed for id {:?}", request.id)
+        })
     }
     WorkerRequest::CodeActionResolveRequest(request) => {
       do_code_action_resolve(
@@ -929,6 +958,7 @@ async fn do_generate(
   );
 
   let (tx, rx) = oneshot::channel();
+  info!("do_generate: Sending Prompt request to memory worker.");
   memory_backend_tx.send(memory_worker::WorkerRequest::Prompt(
     PromptRequest::new(
       request.params.text_document_position.clone(),
@@ -947,7 +977,10 @@ async fn do_generate(
   // First new part added for new code for gemini
   let history_text = match &prompt {
     Prompt::ContextAndCode(ctx_code_prompt) => {
-      // Check if .code actually contains tags, otherwise maybe history is empty?
+      info!(
+        "do_generate: Extracting history from prompt.code (length {}).",
+        ctx_code_prompt.code.len()
+      ); // Check if .code actually contains tags, otherwise maybe history is empty?
       if ctx_code_prompt.code.contains("<|user|>")
         || ctx_code_prompt.code.contains("<|assistant|>")
       {
@@ -963,6 +996,7 @@ async fn do_generate(
     }
   };
 
+  info!("do_generate: Calling parse_history_text_to_chat_messages.");
   let mut chat_history = parse_history_text_to_chat_messages(history_text);
   info!("Parsed {} messages from history text.", chat_history.len());
 
@@ -980,6 +1014,7 @@ async fn do_generate(
 
   // --- Step 6: Modify 'params' based on the backend type ---
   // Ensure 'params' is a mutable JSON object map
+  info!("do_generate: Modifying params based on backend type.");
   if let Some(params_map) = params.as_object_mut() {
     if is_gemini {
       info!(
@@ -999,6 +1034,11 @@ async fn do_generate(
           )
         })
         .collect();
+
+      info!(
+        "do_generate: Converted {} messages to GeminiContent.",
+        gemini_contents.len()
+      );
 
       // Serialize and insert "contents"
       match serde_json::to_value(gemini_contents) {
@@ -1092,6 +1132,7 @@ async fn do_generate(
   let result = serde_json::to_value(result)
     .context("Failed to serialize final GenerateResult")?;
 
+  info!("do_generate: Result serialized ok. Returning Ok(Response).");
   Ok(Response {
     id: request.id.clone(),
     result: Some(result),

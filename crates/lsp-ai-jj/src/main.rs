@@ -170,123 +170,6 @@ fn initialize_logging(args: &Args) -> Option<WorkerGuard> {
   log_guard
 }
 
-// fn init_logging(args: &Args) -> Option<WorkerGuard> {
-//   // Common filter based on environment variable
-//   let env_filter = tracing_subscriber::EnvFilter::new(
-//     std::env::var("LSP_AI_LOG").unwrap_or_else(|_| "lsp_ai_jj=debug".into()),
-//   );
-
-//   let mut log_guard: Option<WorkerGuard> = None;
-//   let mut use_file_layer = false;
-
-//   // --- Try setting up file logging if requested ---
-//   if args.use_seperate_log_file {
-//     if let Some(proj_dirs) =
-//       ProjectDirs::from("com", "YourOrgOrUser", "LspAiJj")
-//     {
-//       // Adjust qualifiers
-//       let log_dir = proj_dirs.cache_dir();
-//       if fs::create_dir_all(log_dir).is_ok() {
-//         let file_appender = rolling::daily(log_dir, "lsp_ai_jj.log"); // Rolling daily log file
-//         let (non_blocking_writer, guard) =
-//           tracing_appender::non_blocking(file_appender);
-
-//         let file_layer = tracing_subscriber::fmt::layer()
-//           .with_writer(non_blocking_writer) // Use the non-blocking writer
-//           .with_ansi(false) // No colors in files
-//           .with_target(true)
-//           .with_level(true);
-
-//         // Try initializing with the file layer
-//         if tracing_subscriber::registry()
-//           .with(tracing_subscriber::EnvFilter::new(
-//             std::env::var("LSP_AI_LOG")
-//               .unwrap_or_else(|_| "lsp_ai_jj=debug".into()),
-//           )) // Clone filter for this attempt
-//           .with(file_layer)
-//           .with(tracing_error::ErrorLayer::default())
-//           .try_init() // Use try_init to avoid panic
-//           .is_ok()
-//         {
-//           info!(
-//             "File logging initialized successfully. Log directory: {:?}",
-//             log_dir
-//           );
-//           log_guard = Some(guard); // Store the guard
-//           use_file_layer = true; // Mark that we succeeded
-//         } else {
-//           eprintln!("lsp-ai-jj: Failed to init registry with file layer (already initialized?). Falling back.");
-//         }
-//       } else {
-//         eprintln!(
-//           "lsp-ai-jj: Failed to create log directory {:?}. Falling back.",
-//           log_dir
-//         );
-//       }
-//     } else {
-//       eprintln!(
-//         "lsp-ai-jj: Could not determine cache directory. Falling back."
-//       );
-//     }
-//   }
-
-//   // --- Fallback to stderr if file logging was not used or failed ---
-//   if !use_file_layer {
-//     let stderr_layer = tracing_subscriber::fmt::layer()
-//       .with_writer(std::io::stderr) // Direct logs to stderr
-//       .with_ansi(true) // Use colors if the terminal supports it
-//       .with_target(true)
-//       .with_level(true);
-
-//     if tracing_subscriber::registry()
-//       .with(env_filter) // Use the original filter
-//       .with(stderr_layer)
-//       .with(tracing_error::ErrorLayer::default())
-//       .try_init() // Use try_init
-//       .is_ok()
-//     {
-//       info!("Stderr logging initialized."); // This message goes to stderr
-//     } else {
-//       // This might happen if the file layer init failed *after* setting a global subscriber
-//       eprintln!("lsp-ai-jj: Failed to initialize stderr logging (already initialized?). Logging might not work correctly.");
-//     }
-//   }
-
-//   log_guard // Return the guard (will be None if stderr was used)
-// }
-
-// pub static LOG_GUARD: Lazy<WorkerGuard> = Lazy::new(|| {
-//   if let Err(e) = fs::create_dir_all("logs") {
-//     eprintln!("lsp-ai-jj: Failed to create logs directory 'logs': {}. Logging might fail.", e);
-//     // Depending on requirements, you might panic or handle this differently.
-//   }
-//   let file_appender = rolling::daily("logs", "lisp_ai_jj.log");
-//   let (file_writer, guard) = tracing_appender::non_blocking(file_appender);
-
-//   let file_layer = tracing_subscriber::fmt::layer()
-//     .with_writer(file_writer)
-//     .with_ansi(true)
-//     .with_target(true)
-//     .with_level(true);
-
-//   let stdout_layer = tracing_subscriber::fmt::layer()
-//     .with_writer(std::io::stdout)
-//     .with_ansi(true)
-//     .with_target(true)
-//     .with_level(true);
-
-//   tracing_subscriber::registry()
-//     .with(tracing_subscriber::EnvFilter::new(
-//       std::env::var("LSP_AI_LOG").unwrap_or_else(|_| "lsp_ai_jj=debug".into()),
-//     ))
-//     .with(file_layer)
-//     // .with(stdout_layer)
-//     .with(tracing_error::ErrorLayer::default())
-//     .init();
-
-//   guard
-// });
-
 fn load_config(
   args: &Args,
   init_args: serde_json::Value,
@@ -419,8 +302,7 @@ fn main_loop(connection: Connection, args: serde_json::Value) -> Result<()> {
         } else if request_is::<Generation>(&req) {
           match cast::<Generation>(req) {
             Ok((id, params)) => {
-              info!("Received Generation request (id: {:?}). Parsed GenerationParams:",id
-                            );
+              info!("Received Generation request (id: {:?}). Parsed GenerationParams:",id);
               info!("{:?}", params);
 
               info!(
@@ -432,6 +314,7 @@ fn main_loop(connection: Connection, args: serde_json::Value) -> Result<()> {
                   ))
               );
 
+              info!("main_loop: Sending WorkerRequest::Generation to transformer_worker.");
               let generation_request = GenerationRequest::new(id, params);
               transformer_tx
                 .send(WorkerRequest::Generation(generation_request))?;
