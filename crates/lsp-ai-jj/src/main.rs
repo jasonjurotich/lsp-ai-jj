@@ -100,46 +100,35 @@ fn initialize_logging(args: &Args) -> Option<WorkerGuard> {
 
   // --- 2. Create the Stderr Layer (Always) ---
   // This layer formats messages and writes them to stderr.
-
   let stderr_layer = tracing_subscriber::fmt::layer()
     .with_writer(std::io::stderr)
     .with_ansi(true)
     .with_target(true)
     .with_level(true);
 
-  // let stderr_layer = FmtLayer::new()
-  //   .with_writer(stderr) // Target stderr
-  //   .with_ansi(true); // Use terminal colors
-
   // --- 3. Conditionally Create File Layer Components ---
   let mut file_layer_option = None; // Will hold the configured file layer if successful
   let mut log_guard: Option<WorkerGuard> = None; // Holds the guard needed for the file writer
 
   if args.use_seperate_log_file {
-    // Try to set up the file writer
+    // NOTE this is the path!! ~/Library/Caches/com.jasonjurotich.LspAiJj/
+    // NOTE you must run cargo run -- --use-seperate-log-file for this to work!
     if let Some(proj_dirs) =
       ProjectDirs::from("com", "jasonjurotich", "LspAiJj")
     {
-      // Adjust qualifiers
       let log_dir = proj_dirs.cache_dir();
       if fs::create_dir_all(log_dir).is_ok() {
-        // Pass by reference
-        // Standard setup for rolling, non-blocking file logs
         let file_appender = rolling::daily(log_dir, "lsp_ai_jj.log");
-        // Pass by reference
-        //         let (non_blocking_writer, guard) =
-        //           tracing_appender::non_blocking(file_appender);
         let (non_blocking_writer, guard) = non_blocking(file_appender);
 
-        // Create the actual layer that uses the file writer
         let file_layer = tracing_subscriber::fmt::layer()
-          .with_writer(non_blocking_writer) // Use the non-blocking file writer
+          .with_writer(non_blocking_writer)
           .with_ansi(true)
           .with_target(true)
           .with_level(true);
 
-        file_layer_option = Some(file_layer); // Store the layer itself
-        log_guard = Some(guard); // Store the guard - IMPORTANT to return this
+        file_layer_option = Some(file_layer);
+        log_guard = Some(guard);
       } else {
         // Use eprintln for errors occurring before logger is fully initialized
         eprintln!("lsp-ai-jj: Failed to create log directory {:?}. File logging disabled.", log_dir);
@@ -176,9 +165,8 @@ fn initialize_logging(args: &Args) -> Option<WorkerGuard> {
       drop(log_guard.take());
     }
   }
-  // We can log a confirmation message in main() right after calling this function.
 
-  log_guard // Return the guard (Some if file logging is active)
+  log_guard
 }
 
 // fn init_logging(args: &Args) -> Option<WorkerGuard> {
