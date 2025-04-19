@@ -16,8 +16,14 @@ use std::{
     sync::{mpsc, Arc},
     thread,
 };
-use tracing::{error, info};
-use tracing_subscriber::{EnvFilter, FmtSubscriber};
+
+use once_cell::sync::Lazy;
+
+use tracing::{debug, error, info};
+use tracing_appender::non_blocking::WorkerGuard;
+use tracing_appender::rolling;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, FmtSubscriber};
+
 mod config;
 mod crawl;
 mod custom_requests;
@@ -73,90 +79,33 @@ struct Args {
     config: Option<PathBuf>,
 }
 
-fn create_log_file(base_path: &Path) -> anyhow::Result<fs::File> {
-    let dir_path = base_path.join("lsp-ai");
-    fs::create_dir_all(&dir_path)?;
-    let file_path = dir_path.join("lsp-ai.log");
-    Ok(fs::File::create(file_path)?)
-}
+pub static LOG_GUARD: Lazy<WorkerGuard> = Lazy::new(|| {
+    let file_appender = rolling::daily("logs", "rust_wakaapi.log");
+    let (file_writer, guard) = tracing_appender::non_blocking(file_appender);
 
-fn init_logger(_args: &Args) {
-    // Use _args since we ignore command-line args for now
-    // Determine log level from environment variable, default to "info"
-    let log_level = std::env::var("LSP_AI_LOG").unwrap_or_else(|_| "info".to_string());
-    // Build the base subscriber
-    let builder = FmtSubscriber::builder()
-        .with_env_filter(EnvFilter::new(&log_level)) // Use the determined level
-        .with_ansi(false); // Disable color codes for file
+    let file_layer = tracing_subscriber::fmt::layer()
+        .with_writer(file_writer)
+        .with_ansi(true)
+        .with_target(true)
+        .with_level(true);
 
-    // --- Force logging to a specific file for debugging ---
-    let log_file_path = "/tmp/lsp-ai-debug.log"; // Using a fixed, easy-to-find path
-                                                 // Use println! here because tracing might not be fully initialized yet if File::create fails
-    println!("LSP-AI: Attempting to log to {}", log_file_path);
+    let stdout_layer = tracing_subscriber::fmt::layer()
+        .with_writer(std::io::stdout)
+        .with_ansi(true)
+        .with_target(true)
+        .with_level(true);
 
-    match File::create(&log_file_path) {
-        Ok(log_file) => {
-            // Configure logging to the file
-            builder
-                .with_writer(Mutex::new(log_file)) // Use Mutex for basic thread safety
-                // .without_time() // Optional: comment out if you WANT timestamps
-                .init(); // Initialize logging
-                         // Now tracing is initialized (hopefully) for this branch
-        }
-        Err(e) => {
-            // Fallback to stderr if file creation fails
-            eprintln!(
-                "LSP-AI: Failed to create log file '{}': {}",
-                log_file_path, e
-            );
-            FmtSubscriber::builder() // Rebuild because builder was consumed by .init() attempt
-                .with_env_filter(EnvFilter::new(&log_level))
-                .with_writer(std::io::stderr)
-                .without_time()
-                .with_ansi(false)
-                .init();
-        }
-    }
-    // --- End forced file logging ---
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::new(
+            std::env::var("RUST_LOG").unwrap_or_else(|_| "wakatimeapirust=debug".into()),
+        ))
+        .with(file_layer)
+        .with(stdout_layer)
+        .with(tracing_error::ErrorLayer::default())
+        .init();
 
-    // --- ENSURE THE ORIGINAL LOGIC IS COMMENTED OUT OR DELETED ---
-    /*
-    let builder = FmtSubscriber::builder()... // etc... original code...
-    */
-    // --- End original logic ---
-}
-
-// Builds a tracing subscriber from the `LSP_AI_LOG` environment variable
-// If the variables value is malformed or missing, sets the default log level to ERROR
-// fn init_logger(args: &Args) {
-//     let builder = FmtSubscriber::builder().with_env_filter(EnvFilter::from_env("LSP_AI_LOG"));
-//     let base_dirs = BaseDirs::new();
-
-//     if args.use_seperate_log_file && base_dirs.is_some() {
-//         let base_dirs = base_dirs.unwrap();
-//         let cache_dir = base_dirs.cache_dir();
-//         // Linux:   /home/alice/.cache
-//         // Windows: C:\Users\Alice\AppData\Local
-//         // macOS:   /Users/Alice/Library/Caches
-//         match create_log_file(&cache_dir) {
-//             Ok(log_file) => builder.with_writer(Mutex::new(log_file)).init(),
-//             Err(e) => {
-//                 eprintln!("creating log file: {e:?} - falling back to stderr");
-//                 builder
-//                     .with_writer(std::io::stderr)
-//                     .without_time()
-//                     .with_ansi(false)
-//                     .init()
-//             }
-//         }
-//     } else {
-//         builder
-//             .with_writer(std::io::stderr)
-//             .without_time()
-//             .with_ansi(false)
-//             .init()
-//     }
-// }
+    guard
+});
 
 fn load_config(args: &Args, init_args: serde_json::Value) -> anyhow::Result<serde_json::Value> {
     if let Some(config_path) = &args.config {
@@ -171,7 +120,8 @@ fn load_config(args: &Args, init_args: serde_json::Value) -> anyhow::Result<serd
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    init_logger(&args);
+    let _ = *LOG_GUARD;
+
     info!("lsp-ai logger initialized starting server");
 
     let (connection, io_threads) = Connection::stdio();
