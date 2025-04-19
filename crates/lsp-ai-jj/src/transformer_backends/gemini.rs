@@ -205,7 +205,12 @@ impl TransformerBackend for Gemini {
     prompt: &Prompt,
     params: Value,
   ) -> anyhow::Result<DoGenerationResponse> {
+    info!("we are right before creating a GeminiRunParams struct");
     let params: GeminiRunParams = serde_json::from_value(params)?;
+    info!(
+      "we are right after creating a GeminiRunParams struct, which is {:?}",
+      params
+    );
     let generated_text = self.do_chat_completion(prompt, params).await?;
     Ok(DoGenerationResponse { generated_text })
   }
