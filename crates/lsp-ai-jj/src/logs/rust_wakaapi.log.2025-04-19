@@ -1,0 +1,19 @@
+[2m2025-04-19T17:33:56.633257Z[0m [32m INFO[0m [2mwakatimeapirust[0m[2m:[0m This is a test log message.
+[2m2025-04-19T17:33:56.633330Z[0m [32m INFO[0m [2mwakatimeapirust[0m[2m:[0m main function in waka api before static
+[2m2025-04-19T17:33:57.113332Z[0m [32m INFO[0m [2mwakatimeapirust[0m[2m:[0m WakaTime LSP server starting...
+[2m2025-04-19T17:33:57.114062Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Initializing
+[2m2025-04-19T17:33:57.114081Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m Project detected: lsp-ai-jj
+[2m2025-04-19T17:33:57.114090Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Received client info: Name='helix', Version='25.01.1 (e7ac2fcd)'
+[2m2025-04-19T17:33:57.114301Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Initialized
+[2m2025-04-19T17:33:57.114787Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-19T17:33:57.114818Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: did_open event for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs with language rust
+[2m2025-04-19T17:33:57.114868Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG this is payload Object {
+    "entity": String("/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs"),
+    "type": String("file"),
+    "category": String("coding"),
+    "time": Number(1745084037.114861),
+    "is_write": Bool(false),
+}
+[2m2025-04-19T17:33:57.114890Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG this is user_agent "wakatime/0.1.0 (macos) helix/25.01.1 (e7ac2fcd) lsp-waka-helix-rust/0.1.0"
+[2m2025-04-19T17:33:57.557259Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG "WakaTime heartbeat sent for: /Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs"
+[2m2025-04-19T17:33:57.557327Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling completed successfully for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
