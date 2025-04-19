@@ -25,9 +25,10 @@ use std::{
 
 use once_cell::sync::Lazy;
 
-use tracing::{debug, error, info};
-use tracing_appender::non_blocking::WorkerGuard;
+use tracing::{debug, error, info, warn};
 use tracing_appender::rolling;
+use tracing_appender::{self, non_blocking, non_blocking::WorkerGuard};
+use tracing_error::ErrorLayer;
 use tracing_subscriber::{
   layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, FmtSubscriber,
 };
@@ -91,90 +92,175 @@ struct Args {
   config: Option<PathBuf>,
 }
 
-fn init_logging(args: &Args) -> Option<WorkerGuard> {
-  // Common filter based on environment variable
-  let env_filter = tracing_subscriber::EnvFilter::new(
+fn initialize_logging(args: &Args) -> Option<WorkerGuard> {
+  // --- 1. Create the Filter ---
+  let env_filter = EnvFilter::new(
     std::env::var("LSP_AI_LOG").unwrap_or_else(|_| "lsp_ai_jj=debug".into()),
   );
 
-  let mut log_guard: Option<WorkerGuard> = None;
-  let mut use_file_layer = false;
+  // --- 2. Create the Stderr Layer (Always) ---
+  // This layer formats messages and writes them to stderr.
 
-  // --- Try setting up file logging if requested ---
+  let stderr_layer = tracing_subscriber::fmt::layer()
+    .with_writer(std::io::stderr)
+    .with_ansi(true)
+    .with_target(true)
+    .with_level(true);
+  // let stderr_layer = FmtLayer::new()
+  //   .with_writer(stderr) // Target stderr
+  //   .with_ansi(true); // Use terminal colors
+
+  // --- 3. Conditionally Create File Layer Components ---
+  let mut file_layer_option = None; // Will hold the configured file layer if successful
+  let mut log_guard: Option<WorkerGuard> = None; // Holds the guard needed for the file writer
+
   if args.use_seperate_log_file {
+    // Try to set up the file writer
     if let Some(proj_dirs) =
       ProjectDirs::from("com", "YourOrgOrUser", "LspAiJj")
     {
       // Adjust qualifiers
       let log_dir = proj_dirs.cache_dir();
-      if fs::create_dir_all(log_dir).is_ok() {
-        let file_appender = rolling::daily(log_dir, "lsp_ai_jj.log"); // Rolling daily log file
-        let (non_blocking_writer, guard) =
-          tracing_appender::non_blocking(file_appender);
+      if fs::create_dir_all(&log_dir).is_ok() {
+        // Pass by reference
+        // Standard setup for rolling, non-blocking file logs
+        let file_appender = rolling::daily(&log_dir, "lsp_ai_jj.log"); // Pass by reference
+                                                                       //         let (non_blocking_writer, guard) =
+                                                                       //           tracing_appender::non_blocking(file_appender);
+        let (non_blocking_writer, guard) = non_blocking(file_appender);
 
+        // Create the actual layer that uses the file writer
         let file_layer = tracing_subscriber::fmt::layer()
-          .with_writer(non_blocking_writer) // Use the non-blocking writer
-          .with_ansi(false) // No colors in files
-          .with_target(true)
-          .with_level(true);
+          .with_writer(non_blocking_writer) // Use the non-blocking file writer
+          .with_ansi(false); // No colors in files
 
-        // Try initializing with the file layer
-        if tracing_subscriber::registry()
-          .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("LSP_AI_LOG")
-              .unwrap_or_else(|_| "lsp_ai_jj=debug".into()),
-          )) // Clone filter for this attempt
-          .with(file_layer)
-          .with(tracing_error::ErrorLayer::default())
-          .try_init() // Use try_init to avoid panic
-          .is_ok()
-        {
-          info!(
-            "File logging initialized successfully. Log directory: {:?}",
-            log_dir
-          );
-          log_guard = Some(guard); // Store the guard
-          use_file_layer = true; // Mark that we succeeded
-        } else {
-          eprintln!("lsp-ai-jj: Failed to init registry with file layer (already initialized?). Falling back.");
-        }
+        file_layer_option = Some(file_layer); // Store the layer itself
+        log_guard = Some(guard); // Store the guard - IMPORTANT to return this
       } else {
-        eprintln!(
-          "lsp-ai-jj: Failed to create log directory {:?}. Falling back.",
-          log_dir
-        );
+        // Use eprintln for errors occurring before logger is fully initialized
+        eprintln!("lsp-ai-jj: Failed to create log directory {:?}. File logging disabled.", log_dir);
       }
     } else {
-      eprintln!(
-        "lsp-ai-jj: Could not determine cache directory. Falling back."
-      );
+      eprintln!("lsp-ai-jj: Could not determine cache directory. File logging disabled.");
     }
   }
 
-  // --- Fallback to stderr if file logging was not used or failed ---
-  if !use_file_layer {
-    let stderr_layer = tracing_subscriber::fmt::layer()
-      .with_writer(std::io::stderr) // Direct logs to stderr
-      .with_ansi(true) // Use colors if the terminal supports it
-      .with_target(true)
-      .with_level(true);
+  // --- 4. Build the Subscriber ---
+  // Start with the registry and add layers common to both scenarios
+  let registry = tracing_subscriber::registry()
+    .with(env_filter)
+    .with(ErrorLayer::default())
+    .with(stderr_layer); // Add stderr layer - it's always active
 
-    if tracing_subscriber::registry()
-      .with(env_filter) // Use the original filter
-      .with(stderr_layer)
-      .with(tracing_error::ErrorLayer::default())
-      .try_init() // Use try_init
-      .is_ok()
-    {
-      info!("Stderr logging initialized."); // This message goes to stderr
-    } else {
-      // This might happen if the file layer init failed *after* setting a global subscriber
-      eprintln!("lsp-ai-jj: Failed to initialize stderr logging (already initialized?). Logging might not work correctly.");
+  // --- 5. Initialize Globally (Single Call) ---
+  // Now, add the file layer *if it exists*, then initialize.
+  let init_result = match file_layer_option {
+    Some(file_layer) => {
+      // Add the file layer we created earlier and initialize
+      registry.with(file_layer).try_init()
+    }
+    None => {
+      // No file layer was created, initialize with just stderr etc.
+      registry.try_init()
+    }
+  };
+
+  if !init_result.is_ok() {
+    eprintln!("lsp-ai-jj: Failed to initialize tracing subscriber. Logging may not work.");
+    // Clean up guard if init failed but guard was created
+    if log_guard.is_some() {
+      drop(log_guard.take());
     }
   }
+  // We can log a confirmation message in main() right after calling this function.
 
-  log_guard // Return the guard (will be None if stderr was used)
+  log_guard // Return the guard (Some if file logging is active)
 }
+
+// fn init_logging(args: &Args) -> Option<WorkerGuard> {
+//   // Common filter based on environment variable
+//   let env_filter = tracing_subscriber::EnvFilter::new(
+//     std::env::var("LSP_AI_LOG").unwrap_or_else(|_| "lsp_ai_jj=debug".into()),
+//   );
+
+//   let mut log_guard: Option<WorkerGuard> = None;
+//   let mut use_file_layer = false;
+
+//   // --- Try setting up file logging if requested ---
+//   if args.use_seperate_log_file {
+//     if let Some(proj_dirs) =
+//       ProjectDirs::from("com", "YourOrgOrUser", "LspAiJj")
+//     {
+//       // Adjust qualifiers
+//       let log_dir = proj_dirs.cache_dir();
+//       if fs::create_dir_all(log_dir).is_ok() {
+//         let file_appender = rolling::daily(log_dir, "lsp_ai_jj.log"); // Rolling daily log file
+//         let (non_blocking_writer, guard) =
+//           tracing_appender::non_blocking(file_appender);
+
+//         let file_layer = tracing_subscriber::fmt::layer()
+//           .with_writer(non_blocking_writer) // Use the non-blocking writer
+//           .with_ansi(false) // No colors in files
+//           .with_target(true)
+//           .with_level(true);
+
+//         // Try initializing with the file layer
+//         if tracing_subscriber::registry()
+//           .with(tracing_subscriber::EnvFilter::new(
+//             std::env::var("LSP_AI_LOG")
+//               .unwrap_or_else(|_| "lsp_ai_jj=debug".into()),
+//           )) // Clone filter for this attempt
+//           .with(file_layer)
+//           .with(tracing_error::ErrorLayer::default())
+//           .try_init() // Use try_init to avoid panic
+//           .is_ok()
+//         {
+//           info!(
+//             "File logging initialized successfully. Log directory: {:?}",
+//             log_dir
+//           );
+//           log_guard = Some(guard); // Store the guard
+//           use_file_layer = true; // Mark that we succeeded
+//         } else {
+//           eprintln!("lsp-ai-jj: Failed to init registry with file layer (already initialized?). Falling back.");
+//         }
+//       } else {
+//         eprintln!(
+//           "lsp-ai-jj: Failed to create log directory {:?}. Falling back.",
+//           log_dir
+//         );
+//       }
+//     } else {
+//       eprintln!(
+//         "lsp-ai-jj: Could not determine cache directory. Falling back."
+//       );
+//     }
+//   }
+
+//   // --- Fallback to stderr if file logging was not used or failed ---
+//   if !use_file_layer {
+//     let stderr_layer = tracing_subscriber::fmt::layer()
+//       .with_writer(std::io::stderr) // Direct logs to stderr
+//       .with_ansi(true) // Use colors if the terminal supports it
+//       .with_target(true)
+//       .with_level(true);
+
+//     if tracing_subscriber::registry()
+//       .with(env_filter) // Use the original filter
+//       .with(stderr_layer)
+//       .with(tracing_error::ErrorLayer::default())
+//       .try_init() // Use try_init
+//       .is_ok()
+//     {
+//       info!("Stderr logging initialized."); // This message goes to stderr
+//     } else {
+//       // This might happen if the file layer init failed *after* setting a global subscriber
+//       eprintln!("lsp-ai-jj: Failed to initialize stderr logging (already initialized?). Logging might not work correctly.");
+//     }
+//   }
+
+//   log_guard // Return the guard (will be None if stderr was used)
+// }
 
 // pub static LOG_GUARD: Lazy<WorkerGuard> = Lazy::new(|| {
 //   if let Err(e) = fs::create_dir_all("logs") {
@@ -225,7 +311,8 @@ fn load_config(
 fn main() -> Result<()> {
   // let _log_guard = &*LOG_GUARD;
   let args = Args::parse();
-  init_logging(&args);
+  let _log_guard = initialize_logging(&args);
+  // init_logging(&args);
 
   info!("lsp-ai logger initialized starting server");
 
