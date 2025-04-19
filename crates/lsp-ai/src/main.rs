@@ -236,12 +236,8 @@ fn main_loop(connection: Connection, args: serde_json::Value) -> Result<()> {
         } else if request_is::<Generation>(&req) {
           match cast::<Generation>(req) {
             Ok((id, params)) => {
-              // --- Add Logging Here ---
-              info!(
-                                "Received Generation request (id: {:?}). Parsed GenerationParams:",
-                                id
+              info!("Received Generation request (id: {:?}). Parsed GenerationParams:",id
                             );
-              // Print the whole struct using Debug format
               info!("{:?}", params);
 
               info!(
