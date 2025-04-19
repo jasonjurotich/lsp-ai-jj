@@ -1,5 +1,5 @@
 [package]
-name = "lsp-ai"
+name = "lsp-ai-jj"
 version = "0.7.1"
 
 description.workspace = true
