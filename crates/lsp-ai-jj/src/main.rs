@@ -91,6 +91,10 @@ struct Args {
 }
 
 pub static LOG_GUARD: Lazy<WorkerGuard> = Lazy::new(|| {
+  if let Err(e) = fs::create_dir_all("logs") {
+    eprintln!("lsp-ai-jj: Failed to create logs directory 'logs': {}. Logging might fail.", e);
+    // Depending on requirements, you might panic or handle this differently.
+  }
   let file_appender = rolling::daily("logs", "lisp_ai_jj.log");
   let (file_writer, guard) = tracing_appender::non_blocking(file_appender);
 
@@ -100,18 +104,18 @@ pub static LOG_GUARD: Lazy<WorkerGuard> = Lazy::new(|| {
     .with_target(true)
     .with_level(true);
 
-  let stdout_layer = tracing_subscriber::fmt::layer()
-    .with_writer(std::io::stdout)
-    .with_ansi(true)
-    .with_target(true)
-    .with_level(true);
+  // let stdout_layer = tracing_subscriber::fmt::layer()
+  //   .with_writer(std::io::stdout)
+  //   .with_ansi(true)
+  //   .with_target(true)
+  //   .with_level(true);
 
   tracing_subscriber::registry()
     .with(tracing_subscriber::EnvFilter::new(
       std::env::var("LSP_AI_LOG").unwrap_or_else(|_| "lsp_ai_jj=debug".into()),
     ))
     .with(file_layer)
-    .with(stdout_layer)
+    // .with(stdout_layer)
     .with(tracing_error::ErrorLayer::default())
     .init();
 
@@ -133,12 +137,23 @@ fn load_config(
 }
 
 fn main() -> Result<()> {
-  let _ = *LOG_GUARD;
+  let _log_guard = &*LOG_GUARD;
   let args = Args::parse();
 
   info!("lsp-ai logger initialized starting server");
 
+  if !args.stdio {
+    error!("Only stdio communication mode is supported.");
+    // Maybe return an error or exit gracefully
+    return Err(anyhow::anyhow!(
+      "Invalid arguments: only --stdio true is supported"
+    ));
+  }
+
+  info!("Setting up LSP connection via stdio.");
   let (connection, io_threads) = Connection::stdio();
+  info!("LSP stdio connection established.");
+
   let server_capabilities = serde_json::to_value(ServerCapabilities {
     completion_provider: Some(CompletionOptions::default()),
     text_document_sync: Some(lsp_types::TextDocumentSyncCapability::Kind(
@@ -165,6 +180,8 @@ fn main() -> Result<()> {
 }
 
 fn main_loop(connection: Connection, args: serde_json::Value) -> Result<()> {
+  info!("Starting main loop. Loaded config: {:?}", args); // Log config on start
+
   // Build our configuration
   let config = Config::new(args)?;
 
