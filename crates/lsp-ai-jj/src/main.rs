@@ -100,6 +100,7 @@ fn initialize_logging(args: &Args) -> Option<WorkerGuard> {
 
   // --- 2. Create the Stderr Layer (Always) ---
   // This layer formats messages and writes them to stderr.
+  // NOTE you must use stderr and not stdout, let everything be an err
   let stderr_layer = tracing_subscriber::fmt::layer()
     .with_writer(std::io::stderr)
     .with_ansi(true)
