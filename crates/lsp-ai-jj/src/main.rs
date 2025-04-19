@@ -391,3 +391,61 @@ fn main_loop(connection: Connection, args: serde_json::Value) -> Result<()> {
   }
   Ok(())
 }
+
+/*
+Helix (Client): You type !C my message and trigger the action. Helix identifies this corresponds to a registered CodeAction named "Chat".
+
+Helix (Client): Sends a codeAction/resolve LSP request to the lsp-ai server, asking it to execute the "Chat" action. This request includes data like the document URI and cursor position.
+
+lsp-ai main.rs: main_loop:
+Receives the CodeActionResolveRequest.
+(Code not shown, but assumes it) Parses the request.
+
+Sends a message WorkerRequest::CodeActionResolveRequest(request) via the transformer_tx channel to the transformer worker thread.
+
+lsp-ai transformer_worker.rs: run (Worker Thread Loop):
+Receives the WorkerRequest::CodeActionResolveRequest(request) from the channel.
+Calls dispatch_request(request, ...).
+
+lsp-ai transformer_worker.rs: dispatch_request:
+Logs dispatch_request: Received request (id: RequestId(I32(2))).
+Calls generate_response(request, ...).await.
+
+lsp-ai transformer_worker.rs: generate_response:
+Logs generate_response: Handling CodeActionResolveRequest (id: RequestId(I32(2)))
+Matches WorkerRequest::CodeActionResolveRequest(request).
+Calls do_code_action_resolve(...). (Matches Backtrace Frame 13)
+
+lsp-ai transformer_worker.rs: do_code_action_resolve:
+(Likely) Determines from the request.params data that this is the "Chat" action.
+(Likely) Calls do_chat_code_action_resolve(...). (Matches Backtrace Frame 12)
+lsp-ai transformer_worker.rs: do_chat_code_action_resolve: (Matches Backtrace Frame 11)
+
+This function is critical. It needs to:
+Get the correct transformer_backend (Gemini).
+Get the memory_backend_tx channel.
+
+Get the static parameters from the config associated with the chat action (systemInstruction, generationConfig). Let's call this config_params: Value.
+Interact with the memory_worker via memory_backend_tx to build the Prompt object (which contains prompt.code with the tagged history string).
+
+MISSING STEP: This function should parse the history from prompt.code and add contents to config_params.
+It then calls the backend. The backtrace (Frame 9 do_completion, Frame 7/5 do_generate) suggests it eventually calls transformer_backend.do_generate(&prompt, config_params).await. Crucially, it passes the config_params without the parsed "contents".
+
+lsp-ai gemini.rs: Gemini::do_generate: (Matches Backtrace Frame 7/5)
+Receives the prompt object.
+
+Receives the params: Value (which only contains systemInstruction, generationConfig, etc., but no contents key).
+
+ERROR OCCURS HERE: It executes let params_struct: GeminiRunParams = serde_json::from_value(params)?; (Line ~208). This fails with Err("missing field 'contents'") because the params Value doesn't have that key.
+The ? operator causes this function to immediately return the Err.
+
+Back Up the Call Stack: The Err is returned from Gemini::do_generate back to its caller in do_chat_code_action_resolve. The ? or .await? there propagates the Err further up through do_code_action_resolve, generate_response, and finally to dispatch_request.
+
+lsp-ai transformer_worker.rs: dispatch_request:
+The match generate_response(...).await receives the Err(e).
+
+It executes the Err arm.
+It logs error!("generating response: {e:?}"), which prints the message: generating response: missing field \contents`` that you see.
+It creates an LSP error response and tries to send it back.
+
+*/
