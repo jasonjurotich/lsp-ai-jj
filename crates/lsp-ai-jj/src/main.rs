@@ -106,6 +106,7 @@ fn initialize_logging(args: &Args) -> Option<WorkerGuard> {
     .with_ansi(true)
     .with_target(true)
     .with_level(true);
+
   // let stderr_layer = FmtLayer::new()
   //   .with_writer(stderr) // Target stderr
   //   .with_ansi(true); // Use terminal colors
@@ -117,16 +118,17 @@ fn initialize_logging(args: &Args) -> Option<WorkerGuard> {
   if args.use_seperate_log_file {
     // Try to set up the file writer
     if let Some(proj_dirs) =
-      ProjectDirs::from("com", "YourOrgOrUser", "LspAiJj")
+      ProjectDirs::from("com", "jasonjurotich", "LspAiJj")
     {
       // Adjust qualifiers
       let log_dir = proj_dirs.cache_dir();
-      if fs::create_dir_all(&log_dir).is_ok() {
+      if fs::create_dir_all(log_dir).is_ok() {
         // Pass by reference
         // Standard setup for rolling, non-blocking file logs
-        let file_appender = rolling::daily(&log_dir, "lsp_ai_jj.log"); // Pass by reference
-                                                                       //         let (non_blocking_writer, guard) =
-                                                                       //           tracing_appender::non_blocking(file_appender);
+        let file_appender = rolling::daily(log_dir, "lsp_ai_jj.log");
+        // Pass by reference
+        //         let (non_blocking_writer, guard) =
+        //           tracing_appender::non_blocking(file_appender);
         let (non_blocking_writer, guard) = non_blocking(file_appender);
 
         // Create the actual layer that uses the file writer
