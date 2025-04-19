@@ -91,7 +91,7 @@ struct Args {
 }
 
 pub static LOG_GUARD: Lazy<WorkerGuard> = Lazy::new(|| {
-  let file_appender = rolling::daily("logs", "rust_lisp_ai_jj.log");
+  let file_appender = rolling::daily("logs", "lisp_ai_jj.log");
   let (file_writer, guard) = tracing_appender::non_blocking(file_appender);
 
   let file_layer = tracing_subscriber::fmt::layer()
