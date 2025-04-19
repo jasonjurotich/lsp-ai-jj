@@ -8,7 +8,10 @@ use std::{
 use flate2::{write::GzEncoder, Compression};
 use time::OffsetDateTime;
 use xshell::{cmd, Shell};
-use zip::{write::FileOptions, DateTime, ZipWriter};
+use zip::{
+    write::{FileOptionExtension, FileOptions},
+    CompressionMethod, DateTime, ZipWriter,
+};
 
 use crate::{flags, project_root};
 
@@ -71,7 +74,8 @@ fn gzip(src_path: &Path, dest_path: &Path) -> anyhow::Result<()> {
 fn zip(src_path: &Path, symbols_path: Option<&PathBuf>, dest_path: &Path) -> anyhow::Result<()> {
     let file = File::create(dest_path)?;
     let mut writer = ZipWriter::new(BufWriter::new(file));
-    writer.start_file(
+
+    writer.start_file::<&str, ()>(
         src_path.file_name().unwrap().to_str().unwrap(),
         FileOptions::default()
             .last_modified_time(
@@ -84,10 +88,12 @@ fn zip(src_path: &Path, symbols_path: Option<&PathBuf>, dest_path: &Path) -> any
             .compression_method(zip::CompressionMethod::Deflated)
             .compression_level(Some(9)),
     )?;
+
     let mut input = io::BufReader::new(File::open(src_path)?);
     io::copy(&mut input, &mut writer)?;
+
     if let Some(symbols_path) = symbols_path {
-        writer.start_file(
+        writer.start_file::<&str, ()>(
             symbols_path.file_name().unwrap().to_str().unwrap(),
             FileOptions::default()
                 .last_modified_time(

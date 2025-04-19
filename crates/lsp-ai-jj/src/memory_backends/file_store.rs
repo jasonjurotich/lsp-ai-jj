@@ -4,7 +4,7 @@ use lsp_types::{Range, TextDocumentIdentifier, TextDocumentPositionParams};
 use parking_lot::{Mutex, RwLock};
 use ropey::Rope;
 use serde_json::Value;
-use std::{collections::HashMap, io::Read};
+use std::{collections::HashMap, io::Read, str::FromStr};
 use tracing::{error, instrument, warn};
 use tree_sitter::{InputEdit, Point, Tree};
 
@@ -546,7 +546,7 @@ assert multiply_two_numbers(2, 3) == 6
 "#;
     let params = lsp_types::DidOpenTextDocumentParams {
       text_document: lsp_types::TextDocumentItem {
-        uri: reqwest::Url::parse(uri).unwrap(),
+        uri: lsp_types::Uri::from_str(uri).unwrap(),
         language_id: "filler".to_string(),
         version: 0,
         text: text.to_string(),
@@ -588,7 +588,7 @@ mod tests {
     let uri = uri.unwrap_or("file:///filler/");
     let text = text.unwrap_or("Here is the document body");
     TextDocumentItem {
-      uri: reqwest::Url::parse(uri).unwrap(),
+      uri: lsp_types::Uri::from_str(uri).unwrap(),
       language_id: "filler".to_string(),
       version: 0,
       text: text.to_string(),
@@ -915,7 +915,7 @@ fn main() {
     );
 }"#;
     let text_document = TextDocumentItem {
-      uri: reqwest::Url::parse(uri).unwrap(),
+      uri: lsp_types::Uri::from_str(uri).unwrap(),
       language_id: "".to_string(),
       version: 0,
       text: text.to_string(),
