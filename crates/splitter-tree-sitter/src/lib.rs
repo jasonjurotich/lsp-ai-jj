@@ -159,7 +159,7 @@ mod tests {
 
         let mut parser = Parser::new();
         parser
-            .set_language(&tree_sitter_rust::language())
+            .set_language(&tree_sitter_rust::LANGUAGE.into())
             .expect("Error loading Rust grammar");
 
         let source_code = r#"
@@ -229,7 +229,7 @@ struct Rectangle {
 
         let mut parser = Parser::new();
         parser
-            .set_language(&tree_sitter_rust::language())
+            .set_language(&tree_sitter_rust::LANGUAGE.into())
             .expect("Error loading Rust grammar");
 
         let source_code = r#"

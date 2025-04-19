@@ -45,41 +45,41 @@ pub fn get_parser_for_extension(extension: &str) -> Result<Parser, GetParserErro
     let mut parser = Parser::new();
     match language.as_str() {
         #[cfg(any(feature = "all", feature = "python"))]
-        "Python" => parser.set_language(&tree_sitter_python::language())?,
+        "Python" => parser.set_language(&tree_sitter_python::LANGUAGE.into())?,
         #[cfg(any(feature = "all", feature = "rust"))]
-        "Rust" => parser.set_language(&tree_sitter_rust::language())?,
+        "Rust" => parser.set_language(&tree_sitter_rust::LANGUAGE.into())?,
         // #[cfg(any(feature = "all", feature = "zig"))]
-        // "Zig" => parser.set_language(&tree_sitter_zig::language())?,
+        // "Zig" => parser.set_language(&tree_sitter_zig::LANGUAGE.into())?,
         #[cfg(any(feature = "all", feature = "bash"))]
-        "Bash" => parser.set_language(&tree_sitter_bash::language())?,
+        "Bash" => parser.set_language(&tree_sitter_bash::LANGUAGE.into())?,
         #[cfg(any(feature = "all", feature = "c"))]
-        "C" => parser.set_language(&tree_sitter_c::language())?,
+        "C" => parser.set_language(&tree_sitter_c::LANGUAGE.into())?,
         #[cfg(any(feature = "all", feature = "cpp"))]
-        "C++" => parser.set_language(&tree_sitter_cpp::language())?,
+        "C++" => parser.set_language(&tree_sitter_cpp::LANGUAGE.into())?,
         #[cfg(any(feature = "all", feature = "csharp"))]
-        "C#" => parser.set_language(&tree_sitter_c_sharp::language())?,
+        "C#" => parser.set_language(&tree_sitter_c_sharp::LANGUAGE.into())?,
         #[cfg(any(feature = "all", feature = "css"))]
-        "CSS" => parser.set_language(&tree_sitter_css::language())?,
+        "CSS" => parser.set_language(&tree_sitter_css::LANGUAGE.into())?,
         #[cfg(any(feature = "all", feature = "elixir"))]
-        "Elixir" => parser.set_language(&tree_sitter_elixir::language())?,
+        "Elixir" => parser.set_language(&tree_sitter_elixir::LANGUAGE.into())?,
         #[cfg(any(feature = "all", feature = "erlang"))]
-        "Erlang" => parser.set_language(&tree_sitter_erlang::language())?,
+        "Erlang" => parser.set_language(&tree_sitter_erlang::LANGUAGE.into())?,
         #[cfg(any(feature = "all", feature = "go"))]
-        "Go" => parser.set_language(&tree_sitter_go::language())?,
+        "Go" => parser.set_language(&tree_sitter_go::LANGUAGE.into())?,
         #[cfg(any(feature = "all", feature = "html"))]
-        "HTML" => parser.set_language(&tree_sitter_html::language())?,
+        "HTML" => parser.set_language(&tree_sitter_html::LANGUAGE.into())?,
         #[cfg(any(feature = "all", feature = "java"))]
-        "Java" => parser.set_language(&tree_sitter_java::language())?,
+        "Java" => parser.set_language(&tree_sitter_java::LANGUAGE.into())?,
         #[cfg(any(feature = "all", feature = "javascript"))]
-        "JavaScript" => parser.set_language(&tree_sitter_javascript::language())?,
+        "JavaScript" => parser.set_language(&tree_sitter_javascript::LANGUAGE.into())?,
         #[cfg(any(feature = "all", feature = "json"))]
-        "JSON" => parser.set_language(&tree_sitter_json::language())?,
+        "JSON" => parser.set_language(&tree_sitter_json::LANGUAGE.into())?,
         #[cfg(any(feature = "all", feature = "haskell"))]
-        "Haskell" => parser.set_language(&tree_sitter_haskell::language())?,
+        "Haskell" => parser.set_language(&tree_sitter_haskell::LANGUAGE.into())?,
         #[cfg(any(feature = "all", feature = "lua"))]
-        "Lua" => parser.set_language(&tree_sitter_lua::language())?,
+        "Lua" => parser.set_language(&tree_sitter_lua::LANGUAGE.into())?,
         #[cfg(any(feature = "all", feature = "ocaml"))]
-        "OCaml" => parser.set_language(&tree_sitter_ocaml::language_ocaml())?,
+        "OCaml" => parser.set_language(&tree_sitter_ocaml::LANGUAGE_OCAML.into())?,
         _ => {
             return Err(GetParserError::NoParserFoundForExtension(
                 language.to_string(),
