@@ -963,11 +963,11 @@ async fn do_generate(
     }
   };
 
-  // let mut chat_history = parse_history_text_to_chat_messages(history_text);
-  // info!("Parsed {} messages from history text.", chat_history.len());
+  let mut chat_history = parse_history_text_to_chat_messages(history_text);
+  info!("Parsed {} messages from history text.", chat_history.len());
 
-  let mut chat_history: Vec<ChatMessage> = Vec::new();
-  info!("Temporarily bypassing history parser, empty history for testing.");
+  // let mut chat_history: Vec<ChatMessage> = Vec::new();
+  // info!("Temporarily bypassing history parser, empty history for testing.");
 
   // _____________________________________________________________________________
   // Second new part added for gemini
