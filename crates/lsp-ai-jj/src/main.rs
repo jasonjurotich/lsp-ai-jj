@@ -133,8 +133,8 @@ fn load_config(
 }
 
 fn main() -> Result<()> {
-  let args = Args::parse();
   let _ = *LOG_GUARD;
+  let args = Args::parse();
 
   info!("lsp-ai logger initialized starting server");
 
