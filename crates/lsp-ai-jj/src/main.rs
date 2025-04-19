@@ -108,7 +108,7 @@ pub static LOG_GUARD: Lazy<WorkerGuard> = Lazy::new(|| {
 
   tracing_subscriber::registry()
     .with(tracing_subscriber::EnvFilter::new(
-      std::env::var("RUST_LOG").unwrap_or_else(|_| "lsp_ai_jj=debug".into()),
+      std::env::var("LSP_AI_LOG").unwrap_or_else(|_| "lsp_ai_jj=debug".into()),
     ))
     .with(file_layer)
     .with(stdout_layer)
