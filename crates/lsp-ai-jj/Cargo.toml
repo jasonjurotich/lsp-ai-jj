@@ -55,6 +55,13 @@ futures = "0.3"
 clap = { version = "4.5.14", features = ["derive"] }
 regex = "1.10.6"
 
+
+surrealdb = { version = "2.2.1", features = [
+  "kv-surrealkv",
+  "kv-mem",
+  "runtime-tokio",
+] }
+
 [build-dependencies]
 cc = "1"
 
