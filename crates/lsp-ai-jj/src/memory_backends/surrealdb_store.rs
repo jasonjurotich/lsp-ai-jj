@@ -22,20 +22,19 @@ use super::{
   ContextAndCodePrompt, FIMPrompt, MemoryBackend, Prompt, PromptType,
 };
 
-use crate::config::{Config, SurrealDbConfig}; // Import config types // Import necessary traits/structs from parent
-
-#[derive(Debug, Clone)]
-pub(crate) struct SurrealDbStore {
-  db: Surreal<Client>, // Use appropriate Client type (Ws, Memory, File...)
-  config: SurrealDbConfig,
-}
+use crate::config::{Config, SurrealDbConfig};
 
 // Simple struct to deserialize vector search results
 #[derive(Deserialize, Debug)]
 struct ChunkResult {
   text: String,
-  // Optionally include score, uri etc. if needed later
   // score: f32,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct SurrealDbStore {
+  db: Surreal<Client>,
+  config: SurrealDbConfig,
 }
 
 impl SurrealDbStore {
@@ -47,17 +46,15 @@ impl SurrealDbStore {
       "Attempting to connect to SurrealDB at endpoint: {}",
       config.endpoint
     );
-    // Connect using Websockets in this example, adjust if using file:// etc.
     let db = Surreal::new::<Ws>(&config.endpoint)
       .await
       .context("Failed to init SurrealDB engine")?;
 
-    db.use_ns(config.namespace.as_deref().unwrap_or("default")) // Use Option::as_deref
-      .use_db(config.database.as_deref().unwrap_or("default")) // Use Option::as_deref
+    db.use_ns(config.namespace.as_deref().unwrap_or("default"))
+      .use_db(config.database.as_deref().unwrap_or("default"))
       .await
       .context("Failed to switch SurrealDB NS/DB")?;
 
-    // Handle Authentication (Example: Root, adjust as needed)
     if let (Some(user), Some(pass)) =
       (config.username.as_ref(), config.password.as_ref())
     {
