@@ -1,5 +1,3 @@
-// src/memory_backends/surrealdb_store.rs
-
 use std::collections::HashMap;
 
 use anyhow::{Context, Result};
