@@ -1,15 +1,21 @@
 // src/memory_backends/surrealdb_store.rs
 
+use std::collections::HashMap;
+
 use anyhow::{Context, Result};
 use async_trait::async_trait;
+
 use lsp_types::{
-  DidChangeTextDocumentParams, DidOpenTextDocumentParams, DidRenameFilesParams,
-  Range, RenameFilesParams, TextDocumentIdentifier, TextDocumentPositionParams,
-  Url,
+  DidChangeTextDocumentParams, DidOpenTextDocumentParams, Range,
+  RenameFilesParams, TextDocumentIdentifier, TextDocumentPositionParams, Uri,
 };
-use serde::Deserialize; // For deserializing query results
+
+use serde::Deserialize;
+use serde_json::Value;
+// For deserializing query results
 use surrealdb::engine::remote::ws::{Client, Ws}; // Or other client type based on endpoint
 use surrealdb::opt::auth::Root; // Or other auth strategy
+use surrealdb::sql;
 use surrealdb::Surreal;
 use tokio::sync::oneshot;
 use tracing::{error, info, warn};
@@ -17,6 +23,7 @@ use tracing::{error, info, warn};
 use super::{
   ContextAndCodePrompt, FIMPrompt, MemoryBackend, Prompt, PromptType,
 };
+
 use crate::config::{Config, SurrealDbConfig}; // Import config types // Import necessary traits/structs from parent
 
 #[derive(Debug, Clone)]
@@ -86,7 +93,7 @@ impl MemoryBackend for SurrealDbStore {
     &self,
     params: DidOpenTextDocumentParams,
   ) -> Result<()> {
-    info!("[SurrealDbStore] opened_text_document: Indexing not implemented yet. URI: {}", params.text_document.uri);
+    info!("[SurrealDbStore] opened_text_document: Indexing not implemented yet. URI: {:#?}", params.text_document.uri);
     // TODO: Implement chunking, embedding via vector::embed, and INSERT/UPDATE
     Ok(())
   }
@@ -95,7 +102,7 @@ impl MemoryBackend for SurrealDbStore {
     &self,
     params: DidChangeTextDocumentParams,
   ) -> Result<()> {
-    info!("[SurrealDbStore] changed_text_document: Indexing not implemented yet. URI: {}", params.text_document.uri);
+    info!("[SurrealDbStore] changed_text_document: Indexing not implemented yet. URI: {:#?}", params.text_document.uri);
     // TODO: Implement efficient update/re-indexing
     Ok(())
   }
@@ -151,7 +158,7 @@ impl MemoryBackend for SurrealDbStore {
     params: &Value, // Config params passed down
   ) -> Result<Prompt> {
     info!(
-      "[SurrealDbStore] build_prompt entered for URI: {}",
+      "[SurrealDbStore] build_prompt entered for URI: {:#?}",
       position.text_document.uri
     );
 
@@ -187,7 +194,7 @@ impl MemoryBackend for SurrealDbStore {
     let mut context_chunks: Vec<String> = Vec::new();
     if !query_text.is_empty() {
       let query = "SELECT text FROM type::table($tb) WHERE vector <|similar|> vector::embed($model, $query) ORDER BY score DESC LIMIT 5;";
-      let vars = HashMap::from([
+      let vars: HashMap<String, sql::Value> = HashMap::from([
         ("tb".into(), self.config.table_name.clone().into()), // Use configured table name
         (
           "model".into(),
