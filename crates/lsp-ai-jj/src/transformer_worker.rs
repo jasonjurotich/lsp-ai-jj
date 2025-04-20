@@ -874,6 +874,12 @@ async fn do_chat_code_action_resolve(
 
   // --- Call the Backend ---
   info!("Calling backend.do_completion (model '{}').", action.model);
+
+  info!(
+        "[CHAT_RESOLVE] FINAL params Value being sent to backend.do_completion:\n{}",
+        serde_json::to_string_pretty(&final_params_value).unwrap_or_else(|e| format!("Error logging final params: {}", e))
+    );
+
   let backend_response = transformer_backend
     .do_completion(&prompt, final_params_value) // Use final Value
     .await
