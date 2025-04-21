@@ -39,7 +39,7 @@ mod custom_requests;
 mod embedding_models;
 mod memory_backends;
 mod memory_worker;
-mod splitters;
+pub mod splitters;
 #[cfg(feature = "llama_cpp")]
 mod template;
 mod transformer_backends;
@@ -75,21 +75,6 @@ where
   R::Params: serde::de::DeserializeOwned,
 {
   req.extract(R::METHOD)
-}
-
-// LSP-AI parameters
-#[derive(Parser)]
-#[command(version)]
-struct Args {
-  // Whether to use a custom log file
-  #[arg(long, default_value_t = false)]
-  use_seperate_log_file: bool,
-  // A dummy argument for now
-  #[arg(long, default_value_t = true)]
-  stdio: bool,
-  // JSON configuration file location
-  #[arg(long, value_parser = utils::validate_file_exists, required = false)]
-  config: Option<PathBuf>,
 }
 
 fn initialize_logging(args: &Args) -> Option<WorkerGuard> {
@@ -170,6 +155,22 @@ fn initialize_logging(args: &Args) -> Option<WorkerGuard> {
   log_guard
 }
 
+// LSP-AI parameters
+// NOTE this is where lsp dumps all the args from the languages.toml helix file
+#[derive(Parser)]
+#[command(version)]
+struct Args {
+  // Whether to use a custom log file
+  #[arg(long, default_value_t = false)]
+  use_seperate_log_file: bool,
+  // A dummy argument for now
+  #[arg(long, default_value_t = true)]
+  stdio: bool,
+  // JSON configuration file location
+  #[arg(long, value_parser = utils::validate_file_exists, required = false)]
+  config: Option<PathBuf>,
+}
+
 fn load_config(
   args: &Args,
   init_args: serde_json::Value,
@@ -186,7 +187,12 @@ fn load_config(
 
 fn main() -> Result<()> {
   // let _log_guard = &*LOG_GUARD;
+
+  // NOTE this has nothing to do with lsp, it is only the args for the cargo command
+  // args = ["--use-seperate-log-file"]
+
   let args = Args::parse();
+
   let _log_guard = initialize_logging(&args);
   // init_logging(&args);
 
@@ -200,10 +206,12 @@ fn main() -> Result<()> {
     ));
   }
 
+  // This initializes the core LSP communication channel. It tells the lsp-server library to listen for LSP messages (JSON RPC) coming in via standard input (stdin) and prepare to send messages back via standard output (stdout). The connection object is used later to send/receive specific LSP messages. io_threads represents background threads handling the raw I/O.
   info!("Setting up LSP connection via stdio.");
   let (connection, io_threads) = Connection::stdio();
   info!("LSP stdio connection established.");
 
+  // What it does: This defines what features the lsp-ai-jj server offers to the editor (Helix). It's like the server saying "Here's what I can do!".
   let server_capabilities = serde_json::to_value(ServerCapabilities {
     completion_provider: Some(CompletionOptions::default()),
     text_document_sync: Some(lsp_types::TextDocumentSyncCapability::Kind(
@@ -217,6 +225,16 @@ fn main() -> Result<()> {
     ),
     ..Default::default()
   })?;
+
+  // THIS IS ACTUALLY THE FIRST STEP -------------------------------------------------------
+  // NOTE initialization_args
+  // What it does: This performs the crucial LSP initialization handshake.
+  // Sends initialize Request: lsp-ai-jj (server) sends its server_capabilities to Helix (client).
+  // Receives initialize Response: Helix receives the server's capabilities. It then sends back a response containing:
+  // Its own capabilities (what Helix features are available).
+  // initializationOptions: This is where Helix packages up the configuration you defined under [language-server.lsp-ai-jj.config] in your languages.toml and sends it back to the server, usually as a JSON Value.
+  // Return Value: The connection.initialize function waits for Helix's response and returns the entire response payload (client capabilities + initialization options) as a serde_json::Value. This Value is stored in the initialization_args variable.
+  // Surrealdb config arguments are also sent in this Value
   let initialization_args = connection.initialize(server_capabilities)?;
 
   if let Err(e) =
@@ -245,12 +263,21 @@ fn main_loop(connection: Connection, args: serde_json::Value) -> Result<()> {
   let (memory_tx, memory_rx) = mpsc::channel();
 
   // Setup the transformer worker
+  // This looks at the [memory] section of your parsed config.
+  // It creates the instance of the specific backend you chose (e.g., SurrealDbStore, FileStore).
+  // If creating SurrealDbStore, this is where SurrealDbStore::new() is called, which connects to your SurrealDB database. So yes, this "activates" the database connection.
   let memory_backend: Box<dyn MemoryBackend + Send + Sync> =
     config.clone().try_into()?;
+
+  // This starts a background thread dedicated only to memory operations (like indexing files or building prompts).
+  // It gives that thread the database connection (memory_backend) it just created.
   let memory_worker_thread =
     thread::spawn(move || memory_worker::run(memory_backend, memory_rx));
 
-  // Setup our transformer worker
+  // Setup our model worker
+  //   This looks at the [models] section of your parsed config (e.g., model1 = { type = "gemini", ... }).
+  // For each model listed, it creates an instance of the corresponding backend object (e.g., Gemini::new(...), Anthropic::new(...)). These objects know how to talk to the specific AI APIs or models.
+  // Why "transformer"? This is a very common term in AI. Most modern large language models (like GPT, Gemini, Claude, Llama) are based on an underlying neural network architecture called the Transformer architecture. So, transformer_backends is idiomatic naming here, referring to the collection of different AI model backends that handle the core text generation/understanding tasks.
   let transformer_backends: HashMap<
     String,
     Box<dyn TransformerBackend + Send + Sync>,
@@ -266,6 +293,9 @@ fn main_loop(connection: Connection, args: serde_json::Value) -> Result<()> {
   let thread_connection = connection.clone();
   let thread_memory_tx = memory_tx.clone();
   let thread_config = config.clone();
+
+  //   This starts another background thread dedicated only to handling AI generation requests (!C, !CC, completions, etc.).
+  // It gives this thread the map of AI model backends (transformer_backends), the parsed config, and the channels needed to communicate with the main thread and the memory worker.
   let transformer_worker_thread = thread::spawn(move || {
     transformer_worker::run(
       transformer_backends,
@@ -348,6 +378,7 @@ fn main_loop(connection: Connection, args: serde_json::Value) -> Result<()> {
             Err(err) => error!("{err:?}"),
           }
         } else if request_is::<CodeActionResolveRequest>(&req) {
+          // when the CodeActionResolveRequest for your !CC comes in, it sends a WorkerRequest::CodeActionResolveRequest message to the transformer_worker via transformer_tx. The worker thread then picks up the message and does the processing (like calling do_chat_code_action_resolve).
           match cast::<CodeActionResolveRequest>(req) {
             Ok((id, params)) => {
               let code_action_request =

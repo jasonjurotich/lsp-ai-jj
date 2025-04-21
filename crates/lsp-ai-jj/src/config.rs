@@ -226,6 +226,17 @@ pub(crate) struct SurrealDbConfig {
   pub(crate) table_name: String, // e.g., "code_chunks"
   // The name used in `DEFINE MODEL ml::your_model_name ...` inside SurrealDB
   pub(crate) embedding_model_name: String, // e.g., "ml::minilm_embedder"
+
+  // --- NEW FIELDS ---
+  /// Local file path OR http(s) URL to the ONNX model file.
+  /// Example: "file:///path/to/your/downloaded/model.onnx"
+  /// Example: "https://huggingface.co/.../resolve/main/model.onnx"
+  pub(crate) model_onnx_location: String,
+  /// The dimension size of the embedding vector (e.g., 384 for all-MiniLM-L12-v2)
+  pub(crate) embedding_dimension: u32,
+
+  #[serde(default)] // Use default splitter config if not specified in TOML
+  pub(crate) splitter: ValidSplitter,
 }
 
 #[derive(Clone, Debug, Deserialize, Default)]
