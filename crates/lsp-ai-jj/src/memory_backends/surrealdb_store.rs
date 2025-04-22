@@ -445,111 +445,95 @@ impl MemoryBackend for SurrealDbStore {
     &self,
     params: DidChangeTextDocumentParams,
   ) -> Result<()> {
-    let uri = params.text_document.uri; // uri is type Uri
-                                        // Use Debug format {:?} for logging Uri
-    info!("[SurrealDbStore] changed_text_document received for URI: {:?} ({} changes)", uri, params.content_changes.len());
+    let uri = params.text_document.uri;
+    // Store the incoming changes before the loop potentially borrows/consumes parts of params
+    let content_changes = params.content_changes; // Take ownership of the Vec from params
+    info!("[SurrealDbStore] changed_text_document received for URI: {:?} ({} changes)", uri, content_changes.len()); // Log len before loop
 
-    // --- Step 1: Acquire the lock ---
+    // --- Step 1 & 2: Lock and Get Rope ---
     let mut docs_guard = match self.documents.lock() {
-      Ok(guard) => guard,
-      Err(poison_error) => {
-        error!("Failed to lock documents map: {}", poison_error);
-        return Err(anyhow!("Mutex poisoned in changed_text_document"));
-      }
-    };
-
-    // --- Step 2: Get the mutable Rope ---
+      Ok(g) => g,
+      Err(e) => return Err(e.into()),
+    }; // Handle error concisely
     let rope = match docs_guard.get_mut(&uri) {
       Some(r) => r,
       None => {
-        // Use Debug format {:?} for logging Uri
-        error!(
-          "Received change for untracked document: {:?}. Skipping.",
-          uri
-        );
+        error!("Untracked doc: {:?}. Skip.", uri);
         return Ok(());
       }
     };
 
     // --- Step 3: Apply changes ---
-    // Use Debug format {:?} for logging Uri
     info!(
       "[SurrealDbStore] Applying {} changes to stored Rope for {:?}",
-      params.content_changes.len(),
+      content_changes.len(),
       uri
     );
     let mut received_full_text = false;
-    for change in params.content_changes {
+    let mut changes_applied = false; // Track if any valid change occurred
+
+    // --- CORRECTED LOOP: Iterate by reference ---
+    for change in content_changes.iter() {
+      // <<< Use .iter() here
       if let Some(range) = change.range {
+        // range is Copy, ok to use
         // Incremental Change
-        // Match on the tuple of results from the conversion functions
         match (
           lsp_position_to_char_index(&range.start, rope),
           lsp_position_to_char_index(&range.end, rope),
         ) {
-          // Case 1: Both start and end positions converted successfully
           (Ok(start_char), Ok(end_char)) => {
-            info!(
-              "[SurrealDbStore] Applying change: range {:?} -> chars {}..{}",
-              range, start_char, end_char
-            ); // Log successful conversion
-               // Bounds checking and applying the edit (as before)
+            // Bounds check etc...
             if start_char > end_char || start_char > rope.len_chars() {
-              error!("Invalid change range indices: start={}, end={}. Rope len={}. Skipping change for {:?}", start_char, end_char, rope.len_chars(), uri);
+              /* log error, continue */
               continue;
             }
-            let current_end_char = std::cmp::min(end_char, rope.len_chars()); // Use a different name to avoid shadowing
+            let current_end_char = std::cmp::min(end_char, rope.len_chars());
             if start_char > current_end_char {
-              error!("Invalid change range after clamp: start {} > end {}. Skipping change for {:?}", start_char, current_end_char, uri);
+              /* log error, continue */
               continue;
             }
+
+            // Apply change using &change.text (borrowing text from the change)
             rope.remove(start_char..current_end_char);
             rope.insert(start_char, &change.text);
-            info!("[SurrealDbStore] Change applied successfully.");
+            changes_applied = true; // Mark change applied
           }
-          // Case 2: Start position failed, End position failed (or succeeded - doesn't matter)
-          (Err(e), _) => {
-            // Use wildcard _ for the second element
-            error!("Failed to convert start position {:?} for {:?}: {:?}. Skipping change.", range.start, uri, e);
-            continue; // Skip this change
+          Err(e) => {
+            error!(
+              "Range conversion error: {:?}. Skipping change for {:?}",
+              e, uri
+            );
+            continue;
           }
-          // Case 3: Start position succeeded, End position failed
-          (_, Err(e)) => {
-            // Use wildcard _ for the first element
-            error!("Failed to convert end position {:?} for {:?}: {:?}. Skipping change.", range.end, uri, e);
-            continue; // Skip this change
-          } // Note: Cases 2 and 3 cover all possibilities where at least one Err occurred.
-            // The pattern `Err(e)` used before was trying to match the whole tuple as a single Err, which is wrong.
         }
       } else {
-        // Full Text Change logic (remains the same)
+        // Full Text Change
         info!("[SurrealDbStore] Received full text change for {:?}", uri);
-        *rope = Rope::from_str(&change.text);
+        *rope = Rope::from_str(&change.text); // Create Rope from &str
         received_full_text = true;
-        break;
+        changes_applied = true; // Mark change applied
+        break; // Exit loop as we have full text
       }
-    }
+    } // --- End loop ---
 
     // --- Step 4: Get final text and release lock ---
     let new_full_text = rope.to_string();
     drop(docs_guard);
-    // Use Debug format {:?} for logging Uri
     info!(
       "[SurrealDbStore] Rope updated for {:?}. New text length: {}",
       uri,
       new_full_text.len()
     );
 
-    // --- Step 5: Spawn re-indexing task ---
-    if params.content_changes.is_empty() && !received_full_text {
-      // Use Debug format {:?} for logging Uri
-      warn!("[SurrealDbStore] No content changes received for {:?}. Skipping indexing spawn.", uri);
+    // --- Step 5: Spawn re-indexing task ONLY if changes were actually applied ---
+    if !changes_applied {
+      warn!("[SurrealDbStore] No valid changes applied for {:?}. Skipping indexing spawn.", uri);
       return Ok(());
     }
 
     let db_clone = self.db.clone();
     let config_clone = self.config.clone();
-    // Use Debug format {:?} for logging Uri
     info!(
       "[SurrealDbStore] Spawning re-indexing task for changed document: {:?}",
       uri
@@ -559,7 +543,6 @@ impl MemoryBackend for SurrealDbStore {
         Self::index_document(db_clone, config_clone, uri.clone(), new_full_text)
           .await
       {
-        // Keep Debug {:?} here as previously specified
         error!(
           "[SurrealDbStore Task] Error re-indexing changed document {:?}: {:?}",
           uri, e
