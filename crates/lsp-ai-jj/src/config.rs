@@ -1,7 +1,12 @@
 use anyhow::{Context, Result};
+use lsp_types::Uri;
+use ropey::Rope;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::{
+  collections::HashMap,
+  sync::{Arc, Mutex},
+};
 
 pub(crate) type Kwargs = HashMap<String, Value>;
 
@@ -213,7 +218,7 @@ pub(crate) struct PostgresML {
   pub(crate) embedding_model: Option<PostgresMLEmbeddingModel>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct SurrealDbConfig {
   // Connection details (use appropriate types based on surrealdb::opt::connect)
@@ -237,6 +242,7 @@ pub(crate) struct SurrealDbConfig {
 
   #[serde(default)] // Use default splitter config if not specified in TOML
   pub(crate) splitter: ValidSplitter,
+  pub(crate) documents: Arc<Mutex<HashMap<Uri, Rope>>>,
 }
 
 #[derive(Clone, Debug, Deserialize, Default)]

@@ -5,7 +5,7 @@ use async_trait::async_trait;
 
 use lsp_types::{
   CodeAction, DidChangeTextDocumentParams, DidOpenTextDocumentParams,
-  FileRename, Range, RenameFilesParams, TextDocumentIdentifier,
+  FileRename, Position, Range, RenameFilesParams, TextDocumentIdentifier,
   TextDocumentPositionParams, Uri, WorkspaceEdit,
 };
 
@@ -20,30 +20,46 @@ use surrealdb::sql::{Idiom, Param};
 use surrealdb::Surreal;
 use tokio::sync::oneshot;
 use tracing::{error, info, warn};
+use utils_tree_sitter;
 
-use splitter_tree_sitter::{Chunk as TreeSitterChunk, TreeSitterCodeSplitter};
-use text_splitter::{ChunkConfig, TextSplitter};
-use tree_sitter::{Parser, Tree};
+use ropey::Rope;
 
 use super::{
   ContextAndCodePrompt, FIMPrompt, MemoryBackend, Prompt, PromptType,
 };
+use splitter_tree_sitter::{Chunk as TreeSitterChunk, TreeSitterCodeSplitter};
+use std::path::Path;
+use text_splitter::{ChunkConfig, TextSplitter};
+use tree_sitter::{Parser, Tree};
 
 use crate::config::{
   Config, SurrealDbConfig, TextSplitter as TextSplitterConfig,
   TreeSitter as TreeSitterConfig, ValidSplitter,
 };
 
-fn get_language_for_uri(uri: &Uri) -> Option<tree_sitter::Language> {
-  warn!("Placeholder get_language_for_uri called for {:#?}", uri);
-  // Example:
-  // let extension = uri.path().split('.').last()?;
-  // match extension {
-  //     "rs" => Some(tree_sitter_rust::language()),
-  //     "py" => Some(tree_sitter_python::language()),
-  //     _ => None,
-  // }
-  None // Default to None if language not found/supported
+fn lsp_position_to_char_index(pos: &Position, rope: &Rope) -> Result<usize> {
+  let line_idx = pos.line as usize;
+  if line_idx > rope.len_lines().saturating_sub(1) {
+    // Check line bounds
+    return Err(anyhow!(
+      "LSP position line {} out of bounds ({} lines)",
+      line_idx,
+      rope.len_lines()
+    ));
+  }
+  let line = rope.line(line_idx);
+  // LSP character is UTF-16 code units, Ropey uses char indices.
+  // Convert UTF-16 offset to char offset for the specific line.
+  let char_idx = line
+    .try_utf16_cu_to_char(pos.character as usize)
+    .with_context(|| {
+      format!(
+        "LSP position character {} out of bounds for line {}",
+        pos.character, line_idx
+      )
+    })?;
+  // Get char index of the start of the line and add the char offset within the line
+  Ok(rope.line_to_char(line_idx) + char_idx)
 }
 
 #[derive(Debug, Clone)]
@@ -189,131 +205,130 @@ impl SurrealDbStore {
   async fn index_document(
     db: Surreal<Client>,
     config: SurrealDbConfig,
-    uri: Uri,
+    uri: Uri, // Expects Uri
     text: String,
   ) -> Result<()> {
-    let uri_string = uri.to_string();
+    let uri_string = uri.to_string(); // Convert for logging/DB where needed
     info!("[INDEX_TASK] Starting indexing for {}", uri_string);
 
     // 1. Delete existing chunks
-    // ... (delete query as before) ...
     let delete_query = "DELETE type::table($tb) WHERE uri = $uri;";
     let vars_del: HashMap<String, sql::Value> = HashMap::from([
       ("tb".into(), sql::Value::from(config.table_name.clone())),
-      ("uri".into(), sql::Value::from(uri_string.clone())),
+      ("uri".into(), sql::Value::from(uri_string.clone())), // Bind String
     ]);
-
     db.query(delete_query)
       .bind(vars_del)
       .await
-      .context("Failed to delete old chunks")?;
+      .with_context(|| {
+        format!("Failed to delete old chunks for {}", uri_string)
+      })?;
     info!("[INDEX_TASK] Deleted old chunks for {}", uri_string);
 
-    // 2. Chunk the new text based on configured splitter
-    let chunks: Vec<String>; // Store results as owned Strings
+    // --- 2. Chunk the new text based on configured splitter ---
+    let chunks: Vec<String>; // Declare chunks variable
 
     match &config.splitter {
-      ValidSplitter::TextSplitter(ts_config) => {
+      // --- TextSplitter Arm ---
+      ValidSplitter::TextSplitter(text_splitter_config) => {
         info!(
-          "[INDEX_TASK] Using TextSplitter with chunk size: {}",
-          ts_config.chunk_size
+          "[INDEX_TASK] Using TextSplitter for {} with chunk size: {}",
+          uri_string, text_splitter_config.chunk_size
         );
-
+        // Use the corrected TextSplitter initialization
         let splitter = TextSplitter::new(
-          // Pass ChunkConfig to new()
-          ChunkConfig::new(ts_config.chunk_size) // Create config with size
-            .with_trim(true), // Configure trimming on the config
+          ChunkConfig::new(text_splitter_config.chunk_size).with_trim(true),
         );
-        // --- End Correction ---
         chunks = splitter.chunks(&text).map(String::from).collect();
       }
+      // --- TreeSitter Arm (Corrected) ---
+      ValidSplitter::TreeSitter(tree_sitter_config) => {
+        info!( "[INDEX_TASK] Attempting TreeSitter chunking for {} (size: {}, overlap: {})...", uri_string, tree_sitter_config.chunk_size, tree_sitter_config.chunk_overlap);
 
-      ValidSplitter::TreeSitter(ts_config) => {
-        info!("[INDEX_TASK] Attempting TreeSitter chunking (size: {}, overlap: {})...", ts_config.chunk_size, ts_config.chunk_overlap);
-        // --- TreeSitter Logic ---
-        // a. Get Language
-        if let Some(language) = get_language_for_uri(&uri) {
-          // b. Create Parser
-          let mut parser = Parser::new();
-          parser.set_language(&language).with_context(|| {
-            format!("Failed to set tree-sitter language for {}", uri_string)
-          })?;
-          // c. Parse into Tree
-          if let Some(tree) = parser.parse(&text, None) {
-            info!(
-              "[INDEX_TASK] Successfully parsed {} with tree-sitter.",
-              uri_string
-            );
-            // d. Use the TreeSitterCodeSplitter from the separate crate/module
-            // Assuming the splitter code user provided is in e.g., crate::splitters::tree_sitter
-            match TreeSitterCodeSplitter::new(
-              ts_config.chunk_size,
-              ts_config.chunk_overlap,
-            ) {
-              Ok(splitter) => {
-                match splitter.split(&tree, text.as_bytes()) {
-                  Ok(ts_chunks) => {
-                    // Convert Vec<splitters::tree_sitter::Chunk> to Vec<String>
-                    chunks = ts_chunks
-                      .into_iter()
-                      .map(|c| c.text.to_string())
-                      .collect();
-                    info!("[INDEX_TASK] Split into {} chunks using TreeSitterCodeSplitter.", chunks.len());
+        let mut tree_sitter_success = false;
+        let mut resulting_chunks: Vec<String> = Vec::new();
+
+        // --- CORRECTED: Get file extension from lsp_types::Uri ---
+
+        let extension = if uri.scheme().map(|s| s.as_str()) == Some("file") {
+          // 1. Get the path object (type fluent_uri::Path)
+          let path_obj = uri.path();
+          // 2. Convert the path object to a string slice (&str) using as_str()
+          let path_str = path_obj.as_str();
+          // 3. Create std::path::Path using the string slice
+          std::path::Path::new(path_str)
+            .extension() // Now called on a type that AsRef<OsStr>
+            .and_then(|os_str| os_str.to_str()) // Convert OsStr to &str
+        } else {
+          // If not a file scheme, we can't get a filesystem extension
+          warn!("[INDEX_TASK] URI scheme is not 'file', cannot determine language for tree-sitter: {}", uri_string);
+          None
+        };
+        // --- End Correction ---
+
+        if let Some(ext) = extension {
+          // Proceed only if we got an extension string
+          info!("[INDEX_TASK] Found extension '{}'. Getting parser...", ext);
+          match utils_tree_sitter::get_parser_for_extension(ext) {
+            // Use the extracted &str
+            Ok(mut parser) => {
+              info!(
+                "[INDEX_TASK] Got parser for extension '{}'. Parsing text...",
+                ext
+              );
+              if let Some(tree) = parser.parse(&text, None) {
+                info!("[INDEX_TASK] Successfully parsed with tree-sitter.");
+                match TreeSitterCodeSplitter::new(
+                  tree_sitter_config.chunk_size,
+                  tree_sitter_config.chunk_overlap,
+                ) {
+                  Ok(splitter) => {
+                    match splitter.split(&tree, text.as_bytes()) {
+                      Ok(ts_chunks) => {
+                        resulting_chunks = ts_chunks
+                          .into_iter()
+                          .map(|c| c.text.to_string())
+                          .collect();
+                        info!("[INDEX_TASK] Split into {} chunks using TreeSitterCodeSplitter.", resulting_chunks.len());
+                        tree_sitter_success = true;
+                      }
+                      Err(e) => {
+                        error!("[INDEX_TASK] TreeSitter split failed: {:?}. Will fallback.", e);
+                      }
+                    }
                   }
                   Err(e) => {
-                    error!("[INDEX_TASK] TreeSitterCodeSplitter failed for {}: {:?}. Falling back to text splitter.", uri_string, e);
-                    // Fallback
-
-                    let splitter = TextSplitter::new(
-                      // Pass ChunkConfig to new()
-                      ChunkConfig::new(ts_config.chunk_size) // Create config with size
-                        .with_trim(true), // Configure trimming on the config
-                    );
-                    // --- End Correction ---
-                    chunks = splitter.chunks(&text).map(String::from).collect();
+                    error!("[INDEX_TASK] Failed creating TreeSitterCodeSplitter: {:?}. Will fallback.", e);
                   }
                 }
-              }
-              Err(e) => {
-                error!("[INDEX_TASK] Failed to create TreeSitterCodeSplitter: {:?}. Falling back to text splitter.", e);
-                // Fallback
-
-                let splitter = TextSplitter::new(
-                  // Pass ChunkConfig to new()
-                  ChunkConfig::new(ts_config.chunk_size) // Create config with size
-                    .with_trim(true), // Configure trimming on the config
-                );
-                // --- End Correction ---
-                chunks = splitter.chunks(&text).map(String::from).collect();
+              } else {
+                warn!("[INDEX_TASK] Tree-sitter parsing returned None. Will fallback.");
               }
             }
-          } else {
-            warn!("[INDEX_TASK] Tree-sitter parsing returned None for {}. Falling back to text splitter.", uri_string);
-            // Fallback
-
-            let splitter = TextSplitter::new(
-              // Pass ChunkConfig to new()
-              ChunkConfig::new(ts_config.chunk_size) // Create config with size
-                .with_trim(true), // Configure trimming on the config
-            );
-            // --- End Correction ---
-            chunks = splitter.chunks(&text).map(String::from).collect();
+            Err(e) => {
+              warn!("[INDEX_TASK] Failed getting parser for extension '{}': {:?}. Will fallback.", ext, e);
+            }
           }
         } else {
-          warn!("[INDEX_TASK] Tree-sitter language not found for URI {}. Falling back to text splitter.", uri_string);
-          // Fallback
+          // This case handles non-file URIs or paths without extensions
+          warn!("[INDEX_TASK] Could not determine suitable extension for URI {}. Will fallback.", uri_string);
+        }
 
-          let splitter = TextSplitter::new(
-            // Pass ChunkConfig to new()
-            ChunkConfig::new(ts_config.chunk_size) // Create config with size
-              .with_trim(true), // Configure trimming on the config
+        // Assign chunks based on success flag or fallback
+        if tree_sitter_success {
+          chunks = resulting_chunks;
+        } else {
+          warn!(
+            "[INDEX_TASK] Falling back to text splitter for {}.",
+            uri_string
           );
-          // --- End Correction ---
+          let splitter = TextSplitter::new(
+            ChunkConfig::new(tree_sitter_config.chunk_size).with_trim(true),
+          );
           chunks = splitter.chunks(&text).map(String::from).collect();
         }
-        // --- End TreeSitter Logic ---
-      }
-    }
+      } // End TreeSitter arm
+    } // End match config.splitter
 
     info!(
       "[INDEX_TASK] Total chunks generated for {}: {}",
@@ -321,11 +336,9 @@ impl SurrealDbStore {
       chunks.len()
     );
 
-    // 3. Iterate and insert/embed each chunk
+    // --- 3. Iterate and insert/embed each chunk ---
     for (i, chunk) in chunks.iter().enumerate() {
-      // Iterate over Vec<String>
       if chunk.trim().is_empty() {
-        // Double check chunk isn't just whitespace
         warn!(
           "[INDEX_TASK] Skipping empty/whitespace chunk {} for {}",
           i, uri_string
@@ -336,7 +349,7 @@ impl SurrealDbStore {
       let vars: HashMap<String, sql::Value> = HashMap::from([
         ("tb".into(), sql::Value::from(config.table_name.clone())),
         ("text".into(), sql::Value::from(chunk.clone())), // Pass the String chunk
-        ("uri".into(), sql::Value::from(uri_string.clone())),
+        ("uri".into(), sql::Value::from(uri_string.clone())), // Bind String URI
         (
           "model".into(),
           sql::Value::from(config.embedding_model_name.clone()),
@@ -352,7 +365,7 @@ impl SurrealDbStore {
     }
     info!("[INDEX_TASK] Finished indexing for {}", uri_string);
     Ok(())
-  }
+  } // End of index_document function
 }
 
 // Simple struct to deserialize vector search results
@@ -361,26 +374,6 @@ struct ChunkResult {
   text: String,
   // score: f32,
 }
-
-// --- Chunking Helper (Placeholder - Needs proper implementation) ---
-// TODO: Replace with actual chunking logic, potentially using config.splitter
-fn chunk_text(text: &str, _config: &SurrealDbConfig) -> Vec<String> {
-  info!("[CHUNK] Chunking text (length {})...", text.len());
-  // Very basic placeholder: split by double newline, keep non-empty parts
-  let chunks: Vec<String> = text
-    .split("\n\n")
-    .map(|s| s.trim())
-    .filter(|s| !s.is_empty())
-    .map(String::from)
-    .collect();
-  info!("[CHUNK] Generated {} chunks.", chunks.len());
-  if chunks.is_empty() && !text.trim().is_empty() {
-    warn!("[CHUNK] No chunks generated, using full text as one chunk.");
-    return vec![text.to_string()]; // Fallback for non-empty text with no double newlines
-  }
-  chunks
-}
-// --- End Chunking Helper ---
 
 #[async_trait::async_trait]
 impl MemoryBackend for SurrealDbStore {
@@ -397,7 +390,7 @@ impl MemoryBackend for SurrealDbStore {
     // Clone necessary data for the async task
     let db_clone = self.db.clone();
     let config_clone = self.config.clone();
-    let uri_string = params.text_document.uri.to_string();
+    let uri_string = params.text_document.uri;
     let file_content = params.text_document.text;
 
     // Spawn background task to handle indexing
@@ -412,7 +405,7 @@ impl MemoryBackend for SurrealDbStore {
       .await
       {
         error!(
-          "[SurrealDbStore Task] Error indexing opened document {}: {:?}",
+          "[SurrealDbStore Task] Error indexing opened document {:#?}: {:?}",
           uri_string, e
         );
       }
