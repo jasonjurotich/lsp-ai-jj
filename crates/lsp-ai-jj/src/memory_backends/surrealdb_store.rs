@@ -446,111 +446,111 @@ impl MemoryBackend for SurrealDbStore {
     params: DidChangeTextDocumentParams,
   ) -> Result<()> {
     let uri = params.text_document.uri; // uri is type Uri
-                                        // Use Debug format {:?} for logging Uri
-    info!("[SurrealDbStore] changed_text_document received for URI: {:?} ({} changes)", uri, params.content_changes.len());
+    let content_changes = params.content_changes; // Take ownership of the Vec
+    info!("[SurrealDbStore] changed_text_document received for URI: {:?} ({} changes)", uri, content_changes.len());
 
     // --- Step 1: Acquire the lock ---
     let mut docs_guard = match self.documents.lock() {
       Ok(guard) => guard,
       Err(poison_error) => {
-        error!("Failed to lock documents map: {}", poison_error);
+        error!(
+          "Mutex lock failed in changed_text_document: {}",
+          poison_error
+        );
+        // Cannot proceed if lock fails
         return Err(anyhow!("Mutex poisoned in changed_text_document"));
       }
     };
+    // Lock is now held by docs_guard
 
     // --- Step 2: Get the mutable Rope ---
     let rope = match docs_guard.get_mut(&uri) {
       Some(r) => r,
       None => {
-        // Use Debug format {:?} for logging Uri
+        // Document wasn't opened or tracked previously. This shouldn't ideally happen
+        // if didOpen is always received first, but handle defensively.
         error!(
-          "Received change for untracked document: {:?}. Skipping.",
+          "Received change for untracked document: {:?}. Skipping update.",
           uri
         );
-        return Ok(());
+        return Ok(()); // Not necessarily an error state for this function itself
       }
     };
 
-    // --- Step 3: Apply changes ---
-    // Use Debug format {:?} for logging Uri
+    // --- Step 3: Apply changes sequentially to the Rope ---
     info!(
       "[SurrealDbStore] Applying {} changes to stored Rope for {:?}",
-      params.content_changes.len(),
+      content_changes.len(),
       uri
     );
-    let mut received_full_text = false;
-    for change in params.content_changes {
+    let mut changes_applied = false; // Track if we successfully applied any change
+
+    for change in content_changes {
+      // Iterate over the owned Vec
       if let Some(range) = change.range {
-        // Incremental Change
-        // Match on the tuple of results from the conversion functions
+        // --- Incremental Change ---
+        // Match on the tuple of Results from position conversion
         match (
           lsp_position_to_char_index(&range.start, rope),
           lsp_position_to_char_index(&range.end, rope),
         ) {
-          // Case 1: Both start and end positions converted successfully
+          // Both positions converted successfully
           (Ok(start_char), Ok(end_char)) => {
-            info!(
-              "[SurrealDbStore] Applying change: range {:?} -> chars {}..{}",
-              range, start_char, end_char
-            ); // Log successful conversion
-               // Bounds checking and applying the edit (as before)
-            if start_char > end_char || start_char > rope.len_chars() {
-              error!("Invalid change range indices: start={}, end={}. Rope len={}. Skipping change for {:?}", start_char, end_char, rope.len_chars(), uri);
-              continue;
+            // Basic bounds check before slicing/removing
+            if start_char > end_char {
+              error!("Invalid change range indices (start > end): start={}, end={}. Skipping change for {:?}", start_char, end_char, uri);
+              continue; // Skip to next change
             }
-            let current_end_char = std::cmp::min(end_char, rope.len_chars()); // Use a different name to avoid shadowing
-            if start_char > current_end_char {
-              error!("Invalid change range after clamp: start {} > end {}. Skipping change for {:?}", start_char, current_end_char, uri);
-              continue;
+            if start_char > rope.len_chars() || end_char > rope.len_chars() {
+              error!("Invalid change range indices (out of bounds): start={}, end={}, rope_len={}. Skipping change for {:?}", start_char, end_char, rope.len_chars(), uri);
+              continue; // Skip to next change
             }
-            rope.remove(start_char..current_end_char);
+
+            // Apply the edit
+            rope.remove(start_char..end_char);
             rope.insert(start_char, &change.text);
-            info!("[SurrealDbStore] Change applied successfully.");
+            changes_applied = true; // Mark change applied
+                                    // Optional: Add a debug log here if needed
+                                    // debug!("Applied incremental change: range {:?}, new text '{}'", range, change.text);
           }
-          // Case 2: Start position failed, End position failed (or succeeded - doesn't matter)
+          // Start position conversion failed
           (Err(e), _) => {
-            // Use wildcard _ for the second element
-            error!("Failed to convert start position {:?} for {:?}: {:?}. Skipping change.", range.start, uri, e);
-            continue; // Skip this change
+            error!("Failed to convert START position {:?} for {:?}: {:?}. Skipping change.", range.start, uri, e);
+            continue; // Skip to next change
           }
-          // Case 3: Start position succeeded, End position failed
+          // End position conversion failed (start was Ok)
           (_, Err(e)) => {
-            // Use wildcard _ for the first element
-            error!("Failed to convert end position {:?} for {:?}: {:?}. Skipping change.", range.end, uri, e);
-            continue; // Skip this change
-          } // Note: Cases 2 and 3 cover all possibilities where at least one Err occurred.
-            // The pattern `Err(e)` used before was trying to match the whole tuple as a single Err, which is wrong.
-        }
+            error!("Failed to convert END position {:?} for {:?}: {:?}. Skipping change.", range.end, uri, e);
+            continue; // Skip to next change
+          }
+        } // End match on tuple
       } else {
-        // Full Text Change logic (remains the same)
+        // --- Full Text Change ---
         info!("[SurrealDbStore] Received full text change for {:?}", uri);
-        *rope = Rope::from_str(&change.text);
-        received_full_text = true;
+        *rope = Rope::from_str(&change.text); // Replace entire rope content
+        changes_applied = true;
+        // If we got the full text, we assume it's the definitive state for this batch
         break;
       }
-    }
+    } // End loop over changes
 
     // --- Step 4: Get final text and release lock ---
-    let new_full_text = rope.to_string();
-    drop(docs_guard);
-    // Use Debug format {:?} for logging Uri
+    let new_full_text = rope.to_string(); // Get text *before* releasing lock
+    drop(docs_guard); // Explicitly release the mutex lock guard
     info!(
       "[SurrealDbStore] Rope updated for {:?}. New text length: {}",
       uri,
       new_full_text.len()
     );
 
-    // --- Step 5: Spawn re-indexing task ---
-
-    if params.content_changes.is_empty() && !received_full_text {
-      // Use Debug format {:?} for logging Uri
-      warn!("[SurrealDbStore] No content changes received for {:?}. Skipping indexing spawn.", uri);
-      return Ok(());
+    // --- Step 5: Spawn re-indexing task ONLY if changes were applied ---
+    if !changes_applied {
+      warn!("[SurrealDbStore] No valid changes applied for {:?}. Skipping indexing spawn.", uri);
+      return Ok(()); // Nothing to re-index
     }
 
     let db_clone = self.db.clone();
     let config_clone = self.config.clone();
-    // Use Debug format {:?} for logging Uri
     info!(
       "[SurrealDbStore] Spawning re-indexing task for changed document: {:?}",
       uri
@@ -560,7 +560,7 @@ impl MemoryBackend for SurrealDbStore {
         Self::index_document(db_clone, config_clone, uri.clone(), new_full_text)
           .await
       {
-        // Keep Debug {:?} here as previously specified
+        // Use Debug formatting for error logging
         error!(
           "[SurrealDbStore Task] Error re-indexing changed document {:?}: {:?}",
           uri, e
@@ -568,7 +568,7 @@ impl MemoryBackend for SurrealDbStore {
       }
     });
 
-    // --- Step 6: Return success ---
+    // --- Step 6: Return success for the handler ---
     Ok(())
   }
 
@@ -655,41 +655,139 @@ impl MemoryBackend for SurrealDbStore {
 
   // --- Context Retrieval Method ---
 
+  // async fn build_prompt(
+  //   &self,
+  //   position: &TextDocumentPositionParams,
+  //   prompt_type: PromptType,
+  //   params: &Value, // Config params passed down
+  // ) -> Result<Prompt> {
+  //   info!(
+  //     "[SurrealDbStore] build_prompt entered for URI: {:#?}",
+  //     position.text_document.uri
+  //   );
+
+  //   // --- Step 1: Get the full file content (needed for the 'code' part of prompt) ---
+  //   // We might need to request this from the memory worker again, or maybe store it?
+  //   // Let's assume we fetch it again for simplicity, though inefficient.
+  //   // This requires adding a blocking channel or making build_prompt sync...
+  //   // Alternative: Maybe the 'code' field isn't essential if context is good?
+  //   // Let's return empty code for now to avoid complexity.
+  //   let code_content = String::new(); // Placeholder - needs actual file content
+  //   warn!("[SurrealDbStore] build_prompt: Returning empty 'code' field.");
+
+  //   // --- Step 2: Determine the query text for vector search ---
+  //   // Simplification: Use a hardcoded query or extract from params?
+  //   // Extracting from last user message requires access to history here, which we don't have easily.
+  //   // Let's try extracting a potential query from the static params if available.
+  //   let query_text = params
+  //     .get("query")
+  //     .and_then(Value::as_str)
+  //     .unwrap_or("")
+  //     .to_string(); // Example: Use a "query" field in params if provided
+  //   if query_text.is_empty() {
+  //     warn!("[SurrealDbStore] build_prompt: No query text found in params, using fixed query for vector search.");
+  //     // query_text = "provide relevant context".to_string(); // Fixed fallback
+  //   } else {
+  //     info!(
+  //       "[SurrealDbStore] build_prompt: Using query text from params: '{}'",
+  //       query_text
+  //     );
+  //   }
+
+  //   // --- Step 3: Perform Vector Search (only if query is not empty) ---
+  //   let mut context_chunks: Vec<String> = Vec::new();
+  //   if !query_text.is_empty() {
+  //     let query = "SELECT text FROM type::table($tb) WHERE vector <|similar|> vector::embed($model, $query) ORDER BY score DESC LIMIT 5;";
+  //     let vars: HashMap<String, sql::Value> = HashMap::from([
+  //       ("tb".into(), self.config.table_name.clone().into()), // Use configured table name
+  //       (
+  //         "model".into(),
+  //         self.config.embedding_model_name.clone().into(),
+  //       ), // Use configured model name
+  //       ("query".into(), query_text.into()),
+  //     ]);
+
+  //     info!("[SurrealDbStore] build_prompt: Executing vector search query.");
+  //     let mut response = self
+  //       .db
+  //       .query(query)
+  //       .bind(vars)
+  //       .await
+  //       .context("Vector search query failed")?;
+  //     info!("[SurrealDbStore] build_prompt: Vector search query executed.");
+
+  //     // Take the first result (index 0) which contains the array of chunks
+  //     let chunks: Vec<ChunkResult> = response
+  //       .take(0)
+  //       .context("Deserializing vector search results failed")?;
+  //     info!(
+  //       "[SurrealDbStore] build_prompt: Found {} relevant chunks.",
+  //       chunks.len()
+  //     );
+
+  //     context_chunks = chunks.into_iter().map(|c| c.text).collect();
+  //   } else {
+  //     warn!("[SurrealDbStore] build_prompt: Skipping vector search due to empty query text.");
+  //   }
+
+  //   // --- Step 4: Format Context and Return Prompt ---
+  //   let context_string = context_chunks.join("\n\n---\n\n"); // Join chunks with separator
+  //   info!(
+  //     "[SurrealDbStore] build_prompt: Final context string length: {}",
+  //     context_string.len()
+  //   );
+
+  //   // For now, assume chat always uses ContextAndCode type
+  //   Ok(Prompt::ContextAndCode(ContextAndCodePrompt {
+  //     context: context_string,
+  //     code: code_content, // Use the (currently empty) file content
+  //     selected_text: None, // TODO: Handle selected text if needed
+  //   }))
+  // }
+
   async fn build_prompt(
     &self,
     position: &TextDocumentPositionParams,
     prompt_type: PromptType,
-    params: &Value, // Config params passed down
+    params: &Value, // Contains static config AND the injected "lsp_ai_query"
   ) -> Result<Prompt> {
+    let uri = &position.text_document.uri;
+    info!("[SurrealDbStore] build_prompt entered for URI: {:?}", uri);
+
+    // --- Step 1: Get the full file content for the TRIGGERING file ---
+    let code_content: String;
+    {
+      // Scope for mutex guard
+      let docs_guard = self
+        .documents
+        .lock()
+        .map_err(|e| anyhow!("Mutex poisoned: {}", e))?;
+      // Get the Rope for the triggering URI and convert to String
+      code_content = match docs_guard.get(uri) {
+        Some(rope) => rope.to_string(),
+        None => {
+          warn!("[SurrealDbStore] build_prompt: Triggering document {:?} not found in memory map. Returning empty code.", uri);
+          String::new() // Return empty string if not found (history parsing will fail)
+        }
+      };
+    } // Mutex guard dropped
     info!(
-      "[SurrealDbStore] build_prompt entered for URI: {:#?}",
-      position.text_document.uri
+      "[SurrealDbStore] build_prompt: Retrieved code_content (length {}).",
+      code_content.len()
     );
 
-    // --- Step 1: Get the full file content (needed for the 'code' part of prompt) ---
-    // We might need to request this from the memory worker again, or maybe store it?
-    // Let's assume we fetch it again for simplicity, though inefficient.
-    // This requires adding a blocking channel or making build_prompt sync...
-    // Alternative: Maybe the 'code' field isn't essential if context is good?
-    // Let's return empty code for now to avoid complexity.
-    let code_content = String::new(); // Placeholder - needs actual file content
-    warn!("[SurrealDbStore] build_prompt: Returning empty 'code' field.");
-
-    // --- Step 2: Determine the query text for vector search ---
-    // Simplification: Use a hardcoded query or extract from params?
-    // Extracting from last user message requires access to history here, which we don't have easily.
-    // Let's try extracting a potential query from the static params if available.
+    // --- Step 2: Determine the query text from passed params ---
     let query_text = params
-      .get("query")
+      .get("lsp_ai_query") // Look for the key we injected
       .and_then(Value::as_str)
-      .unwrap_or("")
-      .to_string(); // Example: Use a "query" field in params if provided
+      .map(String::from) // Convert to owned String
+      .unwrap_or_default(); // Default to empty if not found
+
     if query_text.is_empty() {
-      warn!("[SurrealDbStore] build_prompt: No query text found in params, using fixed query for vector search.");
-      // query_text = "provide relevant context".to_string(); // Fixed fallback
+      warn!("[SurrealDbStore] build_prompt: No 'lsp_ai_query' found in params. Vector search will be skipped or ineffective.");
     } else {
       info!(
-        "[SurrealDbStore] build_prompt: Using query text from params: '{}'",
+        "[SurrealDbStore] build_prompt: Using query for vector search: '{}'",
         query_text
       );
     }
@@ -699,49 +797,54 @@ impl MemoryBackend for SurrealDbStore {
     if !query_text.is_empty() {
       let query = "SELECT text FROM type::table($tb) WHERE vector <|similar|> vector::embed($model, $query) ORDER BY score DESC LIMIT 5;";
       let vars: HashMap<String, sql::Value> = HashMap::from([
-        ("tb".into(), self.config.table_name.clone().into()), // Use configured table name
+        (
+          "tb".into(),
+          sql::Value::from(self.config.table_name.clone()),
+        ),
         (
           "model".into(),
-          self.config.embedding_model_name.clone().into(),
-        ), // Use configured model name
-        ("query".into(), query_text.into()),
+          sql::Value::from(self.config.embedding_model_name.clone()),
+        ),
+        ("query".into(), sql::Value::from(query_text)), // Use extracted query
       ]);
 
       info!("[SurrealDbStore] build_prompt: Executing vector search query.");
-      let mut response = self
-        .db
-        .query(query)
-        .bind(vars)
-        .await
-        .context("Vector search query failed")?;
-      info!("[SurrealDbStore] build_prompt: Vector search query executed.");
-
-      // Take the first result (index 0) which contains the array of chunks
-      let chunks: Vec<ChunkResult> = response
-        .take(0)
-        .context("Deserializing vector search results failed")?;
-      info!(
-        "[SurrealDbStore] build_prompt: Found {} relevant chunks.",
-        chunks.len()
-      );
-
-      context_chunks = chunks.into_iter().map(|c| c.text).collect();
+      match self.db.query(query).bind(vars).await {
+        Ok(mut response) => {
+          match response.take::<Vec<ChunkResult>>(0) {
+            // Deserialize into Vec<ChunkResult>
+            Ok(chunks) => {
+              info!(
+                "[SurrealDbStore] build_prompt: Found {} relevant chunks.",
+                chunks.len()
+              );
+              context_chunks = chunks.into_iter().map(|c| c.text).collect();
+            }
+            Err(e) => {
+              error!("Failed to deserialize vector search results: {}. Context will be empty.", e);
+            }
+          }
+        }
+        Err(e) => {
+          error!("Vector search query failed: {}. Context will be empty.", e);
+        }
+      }
     } else {
       warn!("[SurrealDbStore] build_prompt: Skipping vector search due to empty query text.");
     }
 
     // --- Step 4: Format Context and Return Prompt ---
-    let context_string = context_chunks.join("\n\n---\n\n"); // Join chunks with separator
+    let context_string = context_chunks.join("\n\n---\n\n");
     info!(
       "[SurrealDbStore] build_prompt: Final context string length: {}",
       context_string.len()
     );
 
-    // For now, assume chat always uses ContextAndCode type
+    // Return Prompt with vector results in .context and trigger file content in .code
     Ok(Prompt::ContextAndCode(ContextAndCodePrompt {
       context: context_string,
-      code: code_content, // Use the (currently empty) file content
-      selected_text: None, // TODO: Handle selected text if needed
+      code: code_content, // Use the retrieved trigger file content
+      selected_text: None, // TODO: Handle if necessary
     }))
   }
 }

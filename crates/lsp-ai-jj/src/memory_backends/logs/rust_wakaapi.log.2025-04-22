@@ -628,3 +628,153 @@
 [2m2025-04-22T02:03:08.846198Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
 [2m2025-04-22T02:03:27.638116Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
 [2m2025-04-22T02:03:27.638145Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T02:03:28.252179Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T02:03:28.252212Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T02:03:46.154309Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T02:03:46.154338Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T02:03:46.827124Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T02:03:46.827153Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T02:03:48.881763Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T02:03:48.881791Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T02:03:56.058747Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T02:03:56.058832Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T02:04:00.692614Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T02:04:00.692644Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T02:04:23.688036Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T02:04:23.688063Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T02:04:24.580308Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T02:04:24.580339Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T02:04:24.620192Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T02:04:24.620233Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T02:04:32.094573Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T02:04:32.094602Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:14:39.989932Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:14:39.990024Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: did_open event for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs with language rust
+[2m2025-04-22T18:14:39.990113Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG this is payload Object {
+    "entity": String("/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs"),
+    "type": String("file"),
+    "category": String("coding"),
+    "time": Number(1745345679.990098),
+    "is_write": Bool(false),
+}
+[2m2025-04-22T18:14:39.990137Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG this is user_agent "wakatime/0.1.0 (macos) helix/25.01.1 (e7ac2fcd) lsp-waka-helix-rust/0.1.0"
+[2m2025-04-22T18:14:40.456178Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG "WakaTime heartbeat sent for: /Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs"
+[2m2025-04-22T18:14:40.458259Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling completed successfully for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:35:32.457314Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:35:32.457364Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: did_change event for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:35:32.457408Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG this is payload Object {
+    "entity": String("/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs"),
+    "type": String("file"),
+    "category": String("coding"),
+    "time": Number(1745346932.457398),
+    "is_write": Bool(false),
+}
+[2m2025-04-22T18:35:32.457426Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG this is user_agent "wakatime/0.1.0 (macos) helix/25.01.1 (e7ac2fcd) lsp-waka-helix-rust/0.1.0"
+[2m2025-04-22T18:35:32.772087Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:35:32.772131Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:35:32.899807Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG "WakaTime heartbeat sent for: /Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs"
+[2m2025-04-22T18:35:32.899857Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling completed successfully for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:40:32.814043Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:40:32.814091Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: did_change event for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:40:32.814131Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG this is payload Object {
+    "entity": String("/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs"),
+    "type": String("file"),
+    "category": String("coding"),
+    "time": Number(1745347232.814123),
+    "is_write": Bool(false),
+}
+[2m2025-04-22T18:40:32.814149Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG this is user_agent "wakatime/0.1.0 (macos) helix/25.01.1 (e7ac2fcd) lsp-waka-helix-rust/0.1.0"
+[2m2025-04-22T18:40:32.961077Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:40:32.961113Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:40:33.100250Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:40:33.100278Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:40:33.223869Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:40:33.223898Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:40:33.232652Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG "WakaTime heartbeat sent for: /Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs"
+[2m2025-04-22T18:40:33.232697Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling completed successfully for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:41:58.793418Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:41:58.793458Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:41:59.445454Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:41:59.445485Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:42:00.976337Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:42:00.976399Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:42:03.970227Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:42:03.970256Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:45:53.897309Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:45:53.897360Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: did_change event for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:45:53.897406Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG this is payload Object {
+    "entity": String("/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs"),
+    "type": String("file"),
+    "category": String("coding"),
+    "time": Number(1745347553.8973958),
+    "is_write": Bool(false),
+}
+[2m2025-04-22T18:45:53.897420Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG this is user_agent "wakatime/0.1.0 (macos) helix/25.01.1 (e7ac2fcd) lsp-waka-helix-rust/0.1.0"
+[2m2025-04-22T18:45:54.352060Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG "WakaTime heartbeat sent for: /Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs"
+[2m2025-04-22T18:45:54.352216Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling completed successfully for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:45:54.587544Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:45:54.587571Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:45:54.631324Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:45:54.631357Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:46:20.797759Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:46:20.797786Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:46:22.890376Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:46:22.890438Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:46:24.414507Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:46:24.414571Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:46:24.674238Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:46:24.674268Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:46:25.072679Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:46:25.072707Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:46:25.113493Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:46:25.113538Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:46:27.726557Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:46:27.726588Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:47:07.742469Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:47:07.742500Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:48:29.808377Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:48:29.808433Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: did_change event for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:48:29.808486Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG this is payload Object {
+    "entity": String("/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs"),
+    "type": String("file"),
+    "category": String("coding"),
+    "time": Number(1745347709.808474),
+    "is_write": Bool(false),
+}
+[2m2025-04-22T18:48:29.808506Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG this is user_agent "wakatime/0.1.0 (macos) helix/25.01.1 (e7ac2fcd) lsp-waka-helix-rust/0.1.0"
+[2m2025-04-22T18:48:30.250208Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG "WakaTime heartbeat sent for: /Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs"
+[2m2025-04-22T18:48:30.250299Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling completed successfully for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:48:30.699071Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:48:30.699113Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/transformer_worker.rs
+[2m2025-04-22T18:50:06.012565Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:06.012660Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:06.134582Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:06.134610Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:06.260585Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:06.260616Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:06.393881Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:06.393905Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:06.524010Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:06.524036Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:34.541549Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:34.541594Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: did_change event for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:34.541636Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG this is payload Object {
+    "entity": String("/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs"),
+    "type": String("file"),
+    "category": String("coding"),
+    "time": Number(1745347834.541627),
+    "is_write": Bool(false),
+}
+[2m2025-04-22T18:50:34.541653Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG this is user_agent "wakatime/0.1.0 (macos) helix/25.01.1 (e7ac2fcd) lsp-waka-helix-rust/0.1.0"
+[2m2025-04-22T18:50:34.985736Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG "WakaTime heartbeat sent for: /Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs"
+[2m2025-04-22T18:50:34.985794Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling completed successfully for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:37.314187Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:37.314217Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:37.995024Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:37.995052Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:38.048074Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:38.048114Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:43.198206Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:43.198328Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:46.241549Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-22T18:50:46.241617Z[0m [34mDEBUG[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event throttled for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs

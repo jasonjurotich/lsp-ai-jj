@@ -18,7 +18,7 @@ use tokio::sync::oneshot;
 use tracing::{error, info, instrument, warn};
 
 use crate::transformer_backends::gemini::{GeminiContent, Part};
-use serde_json::map::Map;
+use serde_json::{map::Map, Value};
 
 use crate::config::{self, ChatMessage, Config};
 use crate::custom_requests::generation::{GenerateResult, GenerationParams};
@@ -774,8 +774,31 @@ async fn do_chat_code_action_resolve(
     params_map
   );
 
+  // --- >>> ADD Query Extraction & Injection <<< ---
+  // Get the last user message content as the query for context retrieval
+  let user_query_text = chat_history
+    .last() // Use the chat_history we just parsed
+    .filter(|msg| msg.role == "user") // Make sure it's a user message
+    .map(|msg| msg.content.clone()) // Get the content String
+    .unwrap_or_default(); // Use empty string if not found
+
+  if !user_query_text.is_empty() {
+    info!(
+      "[CHAT_RESOLVE] Extracted user query for context search: '{}'",
+      user_query_text
+    );
+    // Add the extracted query to the params_map using a special key
+    params_map
+      .insert("lsp_ai_query".to_string(), Value::String(user_query_text));
+    info!("[CHAT_RESOLVE] Injected query into params_map.");
+  } else {
+    warn!("[CHAT_RESOLVE] Could not extract last user message as query for context search.");
+  }
+  // --- >>> END Query Extraction & Injection <<< ---
+
   let model_name = &action.model;
   let model_config_option = app_config.config.models.get(model_name);
+
   let is_gemini =
     matches!(model_config_option, Some(config::ValidModel::Gemini(_)));
   info!("Model '{}' is_gemini = {}", model_name, is_gemini);
