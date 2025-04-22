@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -66,6 +67,7 @@ fn lsp_position_to_char_index(pos: &Position, rope: &Rope) -> Result<usize> {
 pub(crate) struct SurrealDbStore {
   db: Surreal<Client>,
   config: SurrealDbConfig,
+  documents: Arc<Mutex<HashMap<Uri, Rope>>>,
 }
 
 // this will be created from the lsp config in languages.toml in helix
@@ -199,7 +201,11 @@ impl SurrealDbStore {
     }
     // --- >>> END Define Model Logic <<< ---
 
-    Ok(Self { db, config })
+    Ok(Self {
+      db,
+      config,
+      documents: Arc::new(Mutex::new(HashMap::new())),
+    })
   }
 
   async fn index_document(
@@ -383,59 +389,185 @@ impl MemoryBackend for SurrealDbStore {
     &self,
     params: DidOpenTextDocumentParams,
   ) -> Result<()> {
+    let uri = params.text_document.uri;
+    let file_content_string = params.text_document.text; // Initial content is String
     info!(
       "[SurrealDbStore] opened_text_document received for URI: {:#?}",
-      params.text_document.uri
+      uri
     );
-    // Clone necessary data for the async task
+
+    // --- Store initial content as Rope ---
+    let rope = Rope::from_str(&file_content_string);
+    match self.documents.lock() {
+      Ok(mut docs) => {
+        info!(
+          "[SurrealDbStore] Storing initial Rope ({} chars) for {:#?}",
+          rope.len_chars(),
+          uri
+        );
+        docs.insert(uri.clone(), rope); // Store the Rope
+      }
+      Err(poison_error) => {
+        error!(
+          "Failed to lock documents map in opened_text_document: {}",
+          poison_error
+        );
+        return Err(anyhow!("Mutex poisoned in opened_text_document"));
+      }
+    }
+    // --- End store ---
+
+    // --- Spawn Indexing Task (pass initial String) ---
     let db_clone = self.db.clone();
     let config_clone = self.config.clone();
-    let uri_string = params.text_document.uri;
-    let file_content = params.text_document.text;
-
-    // Spawn background task to handle indexing
     info!("[SurrealDbStore] Spawning indexing task for opened document.");
     TOKIO_RUNTIME.spawn(async move {
+      // Pass the Uri and the initial full content String
       if let Err(e) = Self::index_document(
         db_clone,
         config_clone,
-        uri_string.clone(),
-        file_content,
+        uri.clone(),
+        file_content_string,
       )
       .await
       {
         error!(
           "[SurrealDbStore Task] Error indexing opened document {:#?}: {:?}",
-          uri_string, e
+          uri, e
         );
       }
     });
 
-    Ok(()) // Return immediately
+    Ok(())
   }
 
   fn changed_text_document(
     &self,
     params: DidChangeTextDocumentParams,
   ) -> Result<()> {
+    let uri = params.text_document.uri; // uri is type Uri
+                                        // Use Debug format {:?} for logging Uri
+    info!("[SurrealDbStore] changed_text_document received for URI: {:?} ({} changes)", uri, params.content_changes.len());
+
+    // --- Step 1: Acquire the lock ---
+    let mut docs_guard = match self.documents.lock() {
+      Ok(guard) => guard,
+      Err(poison_error) => {
+        error!("Failed to lock documents map: {}", poison_error);
+        return Err(anyhow!("Mutex poisoned in changed_text_document"));
+      }
+    };
+
+    // --- Step 2: Get the mutable Rope ---
+    let rope = match docs_guard.get_mut(&uri) {
+      Some(r) => r,
+      None => {
+        // Use Debug format {:?} for logging Uri
+        error!(
+          "Received change for untracked document: {:?}. Skipping.",
+          uri
+        );
+        return Ok(());
+      }
+    };
+
+    // --- Step 3: Apply changes ---
+    // Use Debug format {:?} for logging Uri
     info!(
-      "[SurrealDbStore] changed_text_document received for URI: {:#?}",
-      params.text_document.uri
+      "[SurrealDbStore] Applying {} changes to stored Rope for {:?}",
+      params.content_changes.len(),
+      uri
     );
-    // PROBLEM: params.content_changes doesn't contain the full text.
-    // For now, we cannot reliably re-index without the full text.
-    warn!("[SurrealDbStore] changed_text_document: Full re-indexing on change requires getting the complete updated file content, which is not directly available here. Indexing skipped.");
-    // TODO: Implement a mechanism to get the full updated text content
-    //       Maybe the memory_worker needs to maintain the text buffer?
-    //       Once full text is available ("new_full_text"):
-    //       let db_clone = self.db.clone();
-    //       let config_clone = self.config.clone();
-    //       let uri_string = params.text_document.uri.to_string();
-    //       TOKIO_RUNTIME.spawn(async move {
-    //           if let Err(e) = Self::index_document(db_clone, config_clone, uri_string.clone(), new_full_text).await {
-    //               error!("[SurrealDbStore Task] Error re-indexing changed document {}: {:?}", uri_string, e);
-    //           }
-    //       });
+    let mut received_full_text = false;
+    for change in params.content_changes {
+      if let Some(range) = change.range {
+        // Incremental Change
+        // Match on the tuple of results from the conversion functions
+        match (
+          lsp_position_to_char_index(&range.start, rope),
+          lsp_position_to_char_index(&range.end, rope),
+        ) {
+          // Case 1: Both start and end positions converted successfully
+          (Ok(start_char), Ok(end_char)) => {
+            info!(
+              "[SurrealDbStore] Applying change: range {:?} -> chars {}..{}",
+              range, start_char, end_char
+            ); // Log successful conversion
+               // Bounds checking and applying the edit (as before)
+            if start_char > end_char || start_char > rope.len_chars() {
+              error!("Invalid change range indices: start={}, end={}. Rope len={}. Skipping change for {:?}", start_char, end_char, rope.len_chars(), uri);
+              continue;
+            }
+            let current_end_char = std::cmp::min(end_char, rope.len_chars()); // Use a different name to avoid shadowing
+            if start_char > current_end_char {
+              error!("Invalid change range after clamp: start {} > end {}. Skipping change for {:?}", start_char, current_end_char, uri);
+              continue;
+            }
+            rope.remove(start_char..current_end_char);
+            rope.insert(start_char, &change.text);
+            info!("[SurrealDbStore] Change applied successfully.");
+          }
+          // Case 2: Start position failed, End position failed (or succeeded - doesn't matter)
+          (Err(e), _) => {
+            // Use wildcard _ for the second element
+            error!("Failed to convert start position {:?} for {:?}: {:?}. Skipping change.", range.start, uri, e);
+            continue; // Skip this change
+          }
+          // Case 3: Start position succeeded, End position failed
+          (_, Err(e)) => {
+            // Use wildcard _ for the first element
+            error!("Failed to convert end position {:?} for {:?}: {:?}. Skipping change.", range.end, uri, e);
+            continue; // Skip this change
+          } // Note: Cases 2 and 3 cover all possibilities where at least one Err occurred.
+            // The pattern `Err(e)` used before was trying to match the whole tuple as a single Err, which is wrong.
+        }
+      } else {
+        // Full Text Change logic (remains the same)
+        info!("[SurrealDbStore] Received full text change for {:?}", uri);
+        *rope = Rope::from_str(&change.text);
+        received_full_text = true;
+        break;
+      }
+    }
+
+    // --- Step 4: Get final text and release lock ---
+    let new_full_text = rope.to_string();
+    drop(docs_guard);
+    // Use Debug format {:?} for logging Uri
+    info!(
+      "[SurrealDbStore] Rope updated for {:?}. New text length: {}",
+      uri,
+      new_full_text.len()
+    );
+
+    // --- Step 5: Spawn re-indexing task ---
+    if params.content_changes.is_empty() && !received_full_text {
+      // Use Debug format {:?} for logging Uri
+      warn!("[SurrealDbStore] No content changes received for {:?}. Skipping indexing spawn.", uri);
+      return Ok(());
+    }
+
+    let db_clone = self.db.clone();
+    let config_clone = self.config.clone();
+    // Use Debug format {:?} for logging Uri
+    info!(
+      "[SurrealDbStore] Spawning re-indexing task for changed document: {:?}",
+      uri
+    );
+    TOKIO_RUNTIME.spawn(async move {
+      if let Err(e) =
+        Self::index_document(db_clone, config_clone, uri.clone(), new_full_text)
+          .await
+      {
+        // Keep Debug {:?} here as previously specified
+        error!(
+          "[SurrealDbStore Task] Error re-indexing changed document {:?}: {:?}",
+          uri, e
+        );
+      }
+    });
+
+    // --- Step 6: Return success ---
     Ok(())
   }
 
