@@ -14,6 +14,9 @@ use serde::Deserialize;
 use serde_json::Value;
 // For deserializing query results
 use crate::utils::TOKIO_RUNTIME;
+
+use surrealdb::engine::any::{connect, Any};
+
 use surrealdb::engine::remote::ws::{Client, Ws}; // Or other client type based on endpoint
 use surrealdb::opt::auth::Root; // Or other auth strategy
 use surrealdb::sql;
@@ -65,7 +68,7 @@ fn lsp_position_to_char_index(pos: &Position, rope: &Rope) -> Result<usize> {
 
 #[derive(Debug, Clone)]
 pub(crate) struct SurrealDbStore {
-  db: Surreal<Client>,
+  db: Surreal<Any>,
   config: SurrealDbConfig,
   documents: Arc<Mutex<HashMap<Uri, Rope>>>,
 }
@@ -80,7 +83,7 @@ impl SurrealDbStore {
       "Attempting to connect to SurrealDB at endpoint: {}",
       config.endpoint
     );
-    let db = Surreal::new::<Ws>(&config.endpoint)
+    let db: Surreal<Any> = connect(&config.endpoint)
       .await
       .context("Failed to init SurrealDB engine")?;
     db.use_ns(config.namespace.as_deref().unwrap_or("default"))
@@ -209,7 +212,7 @@ impl SurrealDbStore {
   }
 
   async fn index_document(
-    db: Surreal<Client>,
+    db: Surreal<Any>,
     config: SurrealDbConfig,
     uri: Uri, // Expects Uri
     text: String,
