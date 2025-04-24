@@ -1,0 +1,11 @@
+[2m2025-04-24T15:10:57.573982Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-24T15:10:57.574123Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: did_save event for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs
+[2m2025-04-24T15:10:57.574234Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG this is payload Object {
+    "entity": String("/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/memory_backends/surrealdb_store.rs"),
+    "type": String("file"),
+    "category": String("coding"),
+    "time": Number(1745507457.574215),
+    "is_write": Bool(true),
+}
+[2m2025-04-24T15:10:57.574258Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m DEBUG this is user_agent "wakatime/0.1.0 (macos) helix/25.01.1 (e7ac2fcd) lsp-waka-helix-rust/0.1.0"
+[2m2025-04-24T15:10:57.574636Z[0m [32m INFO[0m [2mwakatimeapirust::waka[0m[2m:[0m WakaTime: Shutting down

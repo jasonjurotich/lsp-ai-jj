@@ -117,91 +117,153 @@ impl SurrealDbStore {
       model_name_str
     );
 
-    // 1. Check if model already exists using INFO FOR query
-    let info_query = "INFO FOR MODEL $model;";
-    // Create HashMap for binding the $model variable
-    let vars: HashMap<String, sql::Value> = HashMap::from([
-      ("model".into(), sql::Value::from(model_name_str.clone())), // Bind key "model" to model name string
-    ]);
-
-    info!("Executing INFO FOR MODEL query...");
-    // Execute the INFO query
-    let mut info_response = match db.query(info_query).bind(vars).await {
-      Ok(response) => {
-        info!("INFO FOR MODEL query successful.");
-        response
-      }
-      Err(e) => {
-        error!("Failed to execute 'INFO FOR MODEL' query: {}", e);
-        return Err(anyhow!(e).context("Failed to query model info"));
-      }
+    // Construct the DEFINE MODEL query string
+    let source_clause = if config.model_onnx_location.starts_with("http") {
+      format!("URL '{}'", config.model_onnx_location)
+    } else {
+      // Assume FILE path, strip file:// if present
+      let path = config
+        .model_onnx_location
+        .strip_prefix("file://")
+        .unwrap_or(&config.model_onnx_location);
+      format!("FILE '{}'", path) // Ensure path is accessible by SurrealDB process
     };
+    // Assume standard text->vector signature
+    let input_def = "(text string)";
+    let output_def =
+      format!("(embedding vector<float, {}>)", config.embedding_dimension);
+    // Use the configured model name directly in the DEFINE statement
+    let define_query = format!(
+      "DEFINE MODEL {} TYPE ONNX {} INPUT {} OUTPUT {};",
+      model_name_str, // e.g., ml::minilm_embedder
+      source_clause,
+      input_def,
+      output_def
+    );
+    info!("Executing Define Model Query: {}", define_query);
 
-    // INFO FOR returns an array of results; we expect one result for the specified model name.
-    // That result itself is an Option<Value>. If the model doesn't exist, the result is Ok(None).
-    // If it exists, the result is Ok(Some(Value)), where Value contains model details.
-    let model_info_option: Option<Value> = match info_response.take(0) {
-      // take(0) gets the first resultset
-      Ok(info_opt) => {
-        info!("Deserialized INFO FOR MODEL response successfully.");
-        info_opt // This is the Option<Value> we need
-      }
-      Err(e) => {
-        error!("Failed to deserialize 'INFO FOR MODEL' response: {}", e);
-        return Err(anyhow!(e).context("Deserializing model info failed"));
-      }
-    };
-
-    // Check if the Option<Value> is Some (meaning the model exists)
-    if model_info_option.is_none() {
-      info!(
-        "Model '{}' not found in SurrealDB. Attempting to define it...",
-        model_name_str
-      );
-
-      // 2. Construct the DEFINE MODEL query dynamically (as before)
-      let source_clause = if config.model_onnx_location.starts_with("http") {
-        format!("URL '{}'", config.model_onnx_location)
-      } else {
-        let path = config
-          .model_onnx_location
-          .strip_prefix("file://")
-          .unwrap_or(&config.model_onnx_location);
-        format!("FILE '{}'", path)
-      };
-      let input_def = "(text string)";
-      let output_def =
-        format!("(embedding vector<float, {}>)", config.embedding_dimension);
-
-      // Use the actual model name string in the DEFINE statement
-      let define_query = format!(
-        "DEFINE MODEL {} TYPE ONNX {} INPUT {} OUTPUT {};",
-        model_name_str, // Use the variable holding the name
-        source_clause,
-        input_def,
-        output_def
-      );
-      info!("Executing Define Model Query: {}", define_query);
-
-      // 3. Execute the DEFINE MODEL query (no bindings needed here)
-      match db.query(&define_query).await {
-        Ok(_) => info!(
-          "Successfully defined model '{}' in SurrealDB.",
+    // Execute the query and handle specific errors
+    match db.query(&define_query).await {
+      Ok(_) => {
+        info!(
+          "Successfully executed DEFINE MODEL statement for '{}'.",
           model_name_str
-        ),
-        Err(e) => {
-          error!("Failed to define model '{}': {}", model_name_str, e);
+        );
+      }
+      Err(e) => {
+        let error_string = e.to_string();
+        // Check if the error indicates the model *already exists*
+        // Adjust the substring check based on the actual error message from SurrealDB!
+        if error_string.contains("already exists")
+          || error_string.contains("Model definition already exists")
+          || error_string.contains("Database ")
+            && error_string.contains(" already contains a record with the ID ")
+        // Newer error format? Check exact msg
+        {
+          info!(
+            "Model '{}' likely already defined (Error was: {}). Continuing.",
+            model_name_str, error_string
+          );
+          // Treat "already exists" as non-fatal for initialization
+        } else {
+          // Any other error is fatal during setup
+          error!(
+            "Failed unexpectedly while trying to define model '{}': {}",
+            model_name_str, error_string
+          );
           return Err(anyhow!(e).context(format!(
-            "Failed to define SurrealDB model '{}'",
+            "Failed to define or verify SurrealDB model '{}'",
             model_name_str
           )));
         }
       }
-    } else {
-      info!("Model '{}' already exists in SurrealDB.", model_name_str);
-      // Optionally log details from model_info_option if needed:
-      // info!("Existing model info: {:?}", model_info_option.unwrap());
     }
+
+    // // 1. Check if model already exists using INFO FOR query
+    // let info_query = "INFO FOR MODEL $model;";
+    // // Create HashMap for binding the $model variable
+    // let vars: HashMap<String, sql::Value> = HashMap::from([
+    //   ("model".into(), sql::Value::from(model_name_str.clone())), // Bind key "model" to model name string
+    // ]);
+
+    // info!("Executing INFO FOR MODEL query...");
+    // // Execute the INFO query
+    // let mut info_response = match db.query(info_query).bind(vars).await {
+    //   Ok(response) => {
+    //     info!("INFO FOR MODEL query successful.");
+    //     response
+    //   }
+    //   Err(e) => {
+    //     error!("Failed to execute 'INFO FOR MODEL' query: {}", e);
+    //     return Err(anyhow!(e).context("Failed to query model info"));
+    //   }
+    // };
+
+    // // INFO FOR returns an array of results; we expect one result for the specified model name.
+    // // That result itself is an Option<Value>. If the model doesn't exist, the result is Ok(None).
+    // // If it exists, the result is Ok(Some(Value)), where Value contains model details.
+    // let model_info_option: Option<Value> = match info_response.take(0) {
+    //   // take(0) gets the first resultset
+    //   Ok(info_opt) => {
+    //     info!("Deserialized INFO FOR MODEL response successfully.");
+    //     info_opt // This is the Option<Value> we need
+    //   }
+    //   Err(e) => {
+    //     error!("Failed to deserialize 'INFO FOR MODEL' response: {}", e);
+    //     return Err(anyhow!(e).context("Deserializing model info failed"));
+    //   }
+    // };
+
+    // // Check if the Option<Value> is Some (meaning the model exists)
+    // if model_info_option.is_none() {
+    //   info!(
+    //     "Model '{}' not found in SurrealDB. Attempting to define it...",
+    //     model_name_str
+    //   );
+
+    //   // 2. Construct the DEFINE MODEL query dynamically (as before)
+    //   let source_clause = if config.model_onnx_location.starts_with("http") {
+    //     format!("URL '{}'", config.model_onnx_location)
+    //   } else {
+    //     let path = config
+    //       .model_onnx_location
+    //       .strip_prefix("file://")
+    //       .unwrap_or(&config.model_onnx_location);
+    //     format!("FILE '{}'", path)
+    //   };
+    //   let input_def = "(text string)";
+    //   let output_def =
+    //     format!("(embedding vector<float, {}>)", config.embedding_dimension);
+
+    //   // Use the actual model name string in the DEFINE statement
+    //   let define_query = format!(
+    //     "DEFINE MODEL {} TYPE ONNX {} INPUT {} OUTPUT {};",
+    //     model_name_str, // Use the variable holding the name
+    //     source_clause,
+    //     input_def,
+    //     output_def
+    //   );
+    //   info!("Executing Define Model Query: {}", define_query);
+
+    //   // 3. Execute the DEFINE MODEL query (no bindings needed here)
+    //   match db.query(&define_query).await {
+    //     Ok(_) => info!(
+    //       "Successfully defined model '{}' in SurrealDB.",
+    //       model_name_str
+    //     ),
+    //     Err(e) => {
+    //       error!("Failed to define model '{}': {}", model_name_str, e);
+    //       return Err(anyhow!(e).context(format!(
+    //         "Failed to define SurrealDB model '{}'",
+    //         model_name_str
+    //       )));
+    //     }
+    //   }
+    // } else {
+    //   info!("Model '{}' already exists in SurrealDB.", model_name_str);
+    //   // Optionally log details from model_info_option if needed:
+    //   // info!("Existing model info: {:?}", model_info_option.unwrap());
+    // }
     // --- >>> END Define Model Logic <<< ---
 
     Ok(Self {
