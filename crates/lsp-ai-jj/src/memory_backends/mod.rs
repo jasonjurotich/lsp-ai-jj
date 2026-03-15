@@ -6,10 +6,9 @@ use serde_json::Value;
 
 use crate::config::{Config, ValidMemoryBackend};
 
-use tracing::{debug, error, info, warn};
+use tracing::info;
 
 mod surrealdb_store;
-use crate::config::SurrealDbConfig;
 
 pub(crate) mod file_store;
 mod postgresml;

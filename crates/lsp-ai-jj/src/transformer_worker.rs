@@ -18,7 +18,7 @@ use tokio::sync::oneshot;
 use tracing::{error, info, instrument, warn};
 
 use crate::transformer_backends::gemini::{GeminiContent, Part};
-use serde_json::{map::Map, Value};
+use serde_json::Value;
 
 use crate::config::{self, ChatMessage, Config};
 use crate::custom_requests::generation::{GenerateResult, GenerationParams};

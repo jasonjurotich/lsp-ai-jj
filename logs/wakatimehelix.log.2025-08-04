@@ -1,0 +1,58 @@
+[2m2025-08-04T02:06:34.165113Z[0m [32m INFO[0m [2mwakatimehelix[0m[2m:[0m main function in waka api before static
+[2m2025-08-04T02:06:34.165490Z[0m [32m INFO[0m [2mwakatimehelix[0m[2m:[0m WakaTime LSP server starting...
+[2m2025-08-04T02:06:34.166824Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m WakaTime: Initializing
+[2m2025-08-04T02:06:34.166840Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m Project root URI detected: file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj
+[2m2025-08-04T02:06:34.166848Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m WakaTime: Received client info: Name='helix', Version='25.07.1 (a05c151b)'
+[2m2025-08-04T02:06:34.167663Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m WakaTime: Initialized
+[2m2025-08-04T02:06:34.167726Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m did_open event for: file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/main.rs
+[2m2025-08-04T02:06:34.167730Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m Attempting to update Zellij tab name for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/main.rs
+[2m2025-08-04T02:06:34.167781Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Start path is a file, using its parent directory: "/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/main.rs"
+[2m2025-08-04T02:06:34.167784Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Starting search for Cargo.toml from directory: "/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src"
+[2m2025-08-04T02:06:34.167945Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Checking for Cargo.toml at: "/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/Cargo.toml"
+[2m2025-08-04T02:06:34.167953Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Checking for Cargo.toml at: "/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/Cargo.toml"
+[2m2025-08-04T02:06:34.167958Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Found Cargo.toml in: "/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj"
+[2m2025-08-04T02:06:34.167961Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Using found project directory for basename: "/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj"
+[2m2025-08-04T02:06:34.167963Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Calculated basename: lsp-ai-jj
+[2m2025-08-04T02:06:34.167964Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m Determined project basename for Zellij: lsp-ai-jj
+[2m2025-08-04T02:06:34.167966Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m Attempting to rename Zellij tab for project: lsp-ai-jj
+[2m2025-08-04T02:06:34.184438Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Zellij rename-tab command executed successfully for lsp-ai-jj
+[2m2025-08-04T02:06:34.184450Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/main.rs
+[2m2025-08-04T02:06:34.184466Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m Preparing to send Wakatime heartbeat.
+[2m2025-08-04T02:06:34.184471Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m WAKATIME_API_KEY found.
+[2m2025-08-04T02:06:34.184496Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Prepared Authorization header.
+[2m2025-08-04T02:06:34.184516Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Determined entity path. [3mentity[0m[2m=[0m/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/main.rs
+[2m2025-08-04T02:06:34.184810Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m Using editor version for heartbeat. [3meditor_version[0m[2m=[0m25.07.1 (a05c151b)
+[2m2025-08-04T02:06:34.184835Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Hostname retrieval result: Ok("mac.lan")
+[2m2025-08-04T02:06:34.184841Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Hostname OsString: "mac.lan"
+[2m2025-08-04T02:06:34.184847Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Using machine name: mac.lan
+[2m2025-08-04T02:06:34.184881Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Prepared heartbeat payload. [3mpayload[0m[2m=[0mObject {"category": String("coding"), "editor": String("Helix"), "editor_version": String("25.07.1 (a05c151b)"), "entity": String("/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/main.rs"), "hostname": String("mac.lan"), "is_write": Bool(false), "language": String("Rust"), "machine_name_once": String("mac.lan"), "plugin": String("helix-wakatime/0.1.0"), "project": String("lsp-ai-jj"), "time": Number(1754273194.1845171), "type": String("file")}
+[2m2025-08-04T02:06:34.184890Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m DEBUG this is user_agent "wakatime/0.1.0 (macos) Helix/25.07.1 (a05c151b) helix-wakatime/0.1.0"
+[2m2025-08-04T02:06:34.197971Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Added X-Machine-Name header: mac.lan
+[2m2025-08-04T02:06:34.549199Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m DEBUG "WakaTime heartbeat sent for: /Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/main.rs"
+[2m2025-08-04T02:06:34.549223Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m WakaTime: Heartbeat sent successfully for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/main.rs
+[2m2025-08-04T02:06:34.549230Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m WakaTime: Event handling completed for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/main.rs
+[2m2025-08-04T02:20:38.715731Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m did_change event for: file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/main.rs
+[2m2025-08-04T02:20:38.715764Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m WakaTime: Event handling starting for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/main.rs
+[2m2025-08-04T02:20:38.715787Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m Preparing to send Wakatime heartbeat.
+[2m2025-08-04T02:20:38.715794Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m WAKATIME_API_KEY found.
+[2m2025-08-04T02:20:38.715797Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Prepared Authorization header.
+[2m2025-08-04T02:20:38.715810Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Determined entity path. [3mentity[0m[2m=[0m/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/main.rs
+[2m2025-08-04T02:20:38.715817Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m Using editor version for heartbeat. [3meditor_version[0m[2m=[0m25.07.1 (a05c151b)
+[2m2025-08-04T02:20:38.715824Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Hostname retrieval result: Ok("mac.lan")
+[2m2025-08-04T02:20:38.715826Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Hostname OsString: "mac.lan"
+[2m2025-08-04T02:20:38.715827Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Using machine name: mac.lan
+[2m2025-08-04T02:20:38.715835Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Prepared heartbeat payload. [3mpayload[0m[2m=[0mObject {"category": String("coding"), "editor": String("Helix"), "editor_version": String("25.07.1 (a05c151b)"), "entity": String("/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/main.rs"), "hostname": String("mac.lan"), "is_write": Bool(false), "language": String("Rust"), "machine_name_once": String("mac.lan"), "plugin": String("helix-wakatime/0.1.0"), "project": String("lsp-ai-jj"), "time": Number(1754274038.7158139), "type": String("file")}
+[2m2025-08-04T02:20:38.715838Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m DEBUG this is user_agent "wakatime/0.1.0 (macos) Helix/25.07.1 (a05c151b) helix-wakatime/0.1.0"
+[2m2025-08-04T02:20:38.715850Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Added X-Machine-Name header: mac.lan
+[2m2025-08-04T02:20:38.723710Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m (did_save) event for: file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/main.rs
+[2m2025-08-04T02:20:38.723726Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m Attempting to update Zellij tab name for file:///Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/main.rs
+[2m2025-08-04T02:20:38.723851Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Start path is a file, using its parent directory: "/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/main.rs"
+[2m2025-08-04T02:20:38.723858Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Starting search for Cargo.toml from directory: "/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src"
+[2m2025-08-04T02:20:38.723864Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Checking for Cargo.toml at: "/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/src/Cargo.toml"
+[2m2025-08-04T02:20:38.723872Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Checking for Cargo.toml at: "/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj/Cargo.toml"
+[2m2025-08-04T02:20:38.723887Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Found Cargo.toml in: "/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj"
+[2m2025-08-04T02:20:38.723909Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Using found project directory for basename: "/Users/jasonjurotich/Documents/RUSTDEV/lsp-ai-jj/crates/lsp-ai-jj"
+[2m2025-08-04T02:20:38.723931Z[0m [34mDEBUG[0m [2mwakatimehelix::waka[0m[2m:[0m Calculated basename: lsp-ai-jj
+[2m2025-08-04T02:20:38.723935Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m Determined project basename for Zellij: lsp-ai-jj
+[2m2025-08-04T02:20:38.723938Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m Attempting to rename Zellij tab for project: lsp-ai-jj
+[2m2025-08-04T02:20:38.724320Z[0m [32m INFO[0m [2mwakatimehelix::waka[0m[2m:[0m WakaTime: Shutting down

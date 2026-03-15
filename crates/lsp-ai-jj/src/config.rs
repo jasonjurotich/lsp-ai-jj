@@ -403,18 +403,43 @@ pub(crate) struct Action {
   pub(crate) post_process: PostProcess,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Logging {
+    /// The logging level for the LSP.
+    #[serde(default = "default_lsp_log")]
+    pub lsp_log: String,
+    /// Whether to use a separate log file.
+    #[serde(default)]
+    pub use_seperate_log_file: bool,
+}
+
+fn default_lsp_log() -> String {
+    "lsp_ai_jj=debug".to_string()
+}
+
+impl Default for Logging {
+    fn default() -> Self {
+        Self {
+            lsp_log: default_lsp_log(),
+            use_seperate_log_file: false,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct ValidConfig {
-  pub(crate) memory: ValidMemoryBackend,
-  pub(crate) models: HashMap<String, ValidModel>,
-  pub(crate) completion: Option<Completion>,
-  #[serde(default)]
-  pub(crate) actions: Vec<Action>,
-  #[serde(default)]
-  #[serde(alias = "chat")]
-  // Legacy from when it was called chat, remove soon
-  pub(crate) chats: Vec<Chat>,
+    #[serde(default)]
+    pub(crate) logging: Logging,
+    pub(crate) memory: ValidMemoryBackend,
+    pub(crate) models: HashMap<String, ValidModel>,
+    pub(crate) completion: Option<Completion>,
+    #[serde(default)]
+    pub(crate) actions: Vec<Action>,
+    #[serde(default)]
+    #[serde(alias = "chat")]
+    // Legacy from when it was called chat, remove soon
+    pub(crate) chats: Vec<Chat>,
 }
 
 #[derive(Clone, Debug, Deserialize, Default)]

@@ -2,12 +2,11 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context, Result};
-use async_trait::async_trait;
 
 use lsp_types::{
-  CodeAction, DidChangeTextDocumentParams, DidOpenTextDocumentParams,
+  DidChangeTextDocumentParams, DidOpenTextDocumentParams,
   FileRename, Position, Range, RenameFilesParams, TextDocumentIdentifier,
-  TextDocumentPositionParams, Uri, WorkspaceEdit,
+  TextDocumentPositionParams, Uri,
 };
 
 use serde::Deserialize;
@@ -17,28 +16,23 @@ use crate::utils::TOKIO_RUNTIME;
 
 use surrealdb::engine::any::{connect, Any};
 
-use surrealdb::engine::remote::ws::{Client, Ws}; // Or other client type based on endpoint
-use surrealdb::opt::auth::Root; // Or other auth strategy
+ // Or other client type based on endpoint
+ // Or other auth strategy
 use surrealdb::sql;
-use surrealdb::sql::{Idiom, Param};
 use surrealdb::Surreal;
-use tokio::sync::oneshot;
 use tracing::{error, info, warn};
 use utils_tree_sitter;
 
 use ropey::Rope;
 
 use super::{
-  ContextAndCodePrompt, FIMPrompt, MemoryBackend, Prompt, PromptType,
+  ContextAndCodePrompt, MemoryBackend, Prompt, PromptType,
 };
-use splitter_tree_sitter::{Chunk as TreeSitterChunk, TreeSitterCodeSplitter};
-use std::path::Path;
+use splitter_tree_sitter::TreeSitterCodeSplitter;
 use text_splitter::{ChunkConfig, TextSplitter};
-use tree_sitter::{Parser, Tree};
 
 use crate::config::{
-  Config, SurrealDbConfig, TextSplitter as TextSplitterConfig,
-  TreeSitter as TreeSitterConfig, ValidSplitter,
+  Config, SurrealDbConfig, ValidSplitter,
 };
 
 fn lsp_position_to_char_index(pos: &Position, rope: &Rope) -> Result<usize> {
