@@ -1,0 +1,1 @@
+> **OWNER: JJIR** (the owner's own business) — gcloud account `jasonjurotich@jjir.org`, projects `fraccappdioxus`/`secretsprod`/`jjirorg`/`jjir-loghub`/`jjir-website`. NOT ieducando. Source of truth: `~/Documents/RUSTDEV/OWNERSHIP.md`.
